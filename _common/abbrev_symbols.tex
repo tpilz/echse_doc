@@ -20,10 +20,15 @@
 \newcommand{\satVaporPressure}{\ensuremath{E}}
 \newcommand{\satVaporPressureIce}{\ensuremath{E_i}}
 \newcommand{\satVaporPressureWater}{\ensuremath{E_w}}
+\newcommand{\vaporPressureDeficit}{\ensuremath{{\Delta}E}}
+\newcommand{\slopeSatVapCurve}{\ensuremath{s}}
+\newcommand{\psychroConst}{\ensuremath{\gamma}}
 
 % Other meteorological variables
 \newcommand{\cloudFraction}{\ensuremath{FC}}
 \newcommand{\dewpointTemperature}{\ensuremath{T_{dew}}}
+\newcommand{\moleFracWaterVap}{\ensuremath{x_{v}}}
+\newcommand{\compressibilityFactor}{\ensuremath{Z}}
 
 % Common (unspecific) hydrometeorological variables
 \newcommand{\temperature}{\ensuremath{T}}
@@ -42,6 +47,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Energy fluxes
+\newcommand{\netRadiation}{\ensuremath{R_{net}}}
 \newcommand{\netRadiationShort}{\ensuremath{R_{netS}}}
 \newcommand{\netRadiationLong}{\ensuremath{R_{netL}}}
 \newcommand{\heatfluxSens}{\ensuremath{R_{sens}}}
@@ -53,6 +59,11 @@
 \newcommand{\radLongwaveInClouds}{\ensuremath{R_{inL,cl}}}
 
 \newcommand{\radShortwaveIn}{\ensuremath{R_{inS}}}
+\newcommand{\radShortwaveInClearsky}{\ensuremath{R_{inS,cs}}}
+
+\newcommand{\radExtraterr}{\ensuremath{R_{ex}}}
+\newcommand{\radExtraterrDaily}{\ensuremath{R_{ex,daily}}}
+\newcommand{\radExtraterrHourly}{\ensuremath{R_{ex,hourly}}}
 
 % Mass fluxes
 \newcommand{\massfluxPrec}{\ensuremath{M_{prec}}}
@@ -61,6 +72,7 @@
 
 % Others
 \newcommand{\albedoChangeRate}{\ensuremath{G_{alb}}}
+\newcommand{\albedo}{\ensuremath{\mu}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PHYSICAL CONSTANTS AND CONCEPTUAL PARAMETERS USED IN HYDRO-METEOROLOGY
@@ -69,10 +81,16 @@
 % Densities
 \newcommand{\densityWater}{\ensuremath{\rho_{w}}}
 \newcommand{\densityIce}{\ensuremath{\rho_{i}}}
-\newcommand{\densityAir}{\ensuremath{\rho_{a}}}
+\newcommand{\densityAir}{\ensuremath{\rho_{air,dry}}}
+\newcommand{\densityAirMoist}{\ensuremath{\rho_{air,moist}}}
 \newcommand{\densitySnow}{\ensuremath{\rho_{snow}}}
 \newcommand{\densitySnowDry}{\ensuremath{\rho_{snow,dry}}}
 \newcommand{\densitySoil}{\ensuremath{\rho_s}}
+
+% Molar constants
+\newcommand{\molMassDryAir}{\ensuremath{M_{a}}}
+\newcommand{\molMassWater}{\ensuremath{M_{w}}}
+\newcommand{\molGasConst}{\ensuremath{R}}
 
 % Specific heat capacities
 \newcommand{\specHeatWater}{\ensuremath{C_{wat}}}
@@ -94,7 +112,9 @@
 
 \newcommand{\stefanBoltzmann}{\ensuremath{\sigma}}
 \newcommand{\emissivity}{\ensuremath{\varepsilon}}
+\newcommand{\cloudCorrFac}{\ensuremath{f}}
 
+\newcommand{\solarConstant}{\ensuremath{R_{SC}}}
 
 % Stoichiometry factors and functions used in the snow model
 \newcommand{\stoifacPrecMassToEnergy}{\ensuremath{f_{prec}}}
@@ -112,8 +132,23 @@
 
 % Evapotranspiration
 \newcommand{\etPot}{\ensuremath{et_{pot}}}
-\newcommand{\etReal}{\ensuremath{et_{real}}}
+\newcommand{\etReal}{\ensuremath{et_{act}}}
 \newcommand{\leafAreaIndex}{\ensuremath{LAI}}
+
+% Turbulence
+\newcommand{\karmanConst}{\ensuremath{\kappa}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ASTRONOMICAL PARAMETERS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\solDecl}{\ensuremath{\delta}}
+\newcommand{\eccCorr}{\ensuremath{E_{0}}}
+\newcommand{\dayTimeFac}{\ensuremath{\omega_{s}}}
+\newcommand{\doy}{\ensuremath{N}}
+\newcommand{\lat}{\ensuremath{\varphi}}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

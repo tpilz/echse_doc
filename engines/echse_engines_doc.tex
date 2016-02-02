@@ -1,3 +1,8 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% ATTTENTION
+% compile with ps->pdf!
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \documentclass[a4paper,twocolumn,10pt,fleqn]{book}
 \usepackage[american,ngerman]{babel}     %american / ngerman
 \usepackage[OT1]{fontenc}       %Silbentrennung
@@ -22,6 +27,9 @@
 \usepackage[hyphens,obeyspaces]{url}
 \usepackage{datatool}
 \usepackage{lscape}
+\usepackage{seqsplit} % automatically split very long sequences of letters or numbers; use: \seqsplit{[...]}
+\usepackage[mode=text,exponent-product = \cdot]{siunitx} % display numbers and si units
+\sisetup{locale=UK}
 
 
 %Unterdrueckung von Hurenkindern und Schusterjungen
@@ -34,7 +42,7 @@
 \newcommand{\fmtClassDesc}[1]{\usefont{OT1}{phv}{mc}{n} \fontsize{8pt}{8pt}
   \selectfont #1}
 
-\newcommand{\ECHSEENGINES}{../../../../echse_engines}
+\newcommand{\ECHSEENGINES}{../../echse_engines}
 
 
   
@@ -42,17 +50,17 @@
 %%%%%%%%%%%%%%%%%%%%%% DEFINITIONS %%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\input{../../_common/options-pdfconvert}
-\input{../../_common/options-captions}
-\input{../../_common/options-crossref}
-\input{../../_common/options-lists}
-\input{../../_common/options-inputlistings.tex}
-\input{../../_common/options-hyphen}
-\input{../../_common/formats}
-\input{../../_common/abbrev_misc}
-\input{../../_common/abbrev_symbols}
-\input{../../_common/abbrev_units}
-\input{../../_common/colors}
+\input{../_common/options-pdfconvert}
+\input{../_common/options-captions}
+\input{../_common/options-crossref}
+\input{../_common/options-lists}
+\input{../_common/options-inputlistings.tex}
+\input{../_common/options-hyphen}
+\input{../_common/formats}
+\input{../_common/abbrev_misc}
+\input{../_common/abbrev_symbols}
+\input{../_common/abbrev_units}
+\input{../_common/colors}
 
 \addtolength{\evensidemargin}{-1cm}
 \addtolength{\oddsidemargin}{+1cm}
@@ -79,12 +87,16 @@
   \vspace*{1.2cm}
   Documentation of model engines \\
   \vspace*{2.0cm}
-  \includegraphics[width=0.1\textwidth,angle=270]{../../_common/fig/logo.eps}
+  \includegraphics[width=0.1\textwidth,angle=270]{../_common/fig/logo.eps}
 \end{center}
 
 \cleardoublepage
 
-\vspace*{14cm}
+\vspace*{4cm}
+
+\textbf{Developer:}\\
+\vspace*{2ex}
+
 \begin{tabular}{ll}
 Author      & David Kneis \\
 Affiliation & Institute of Earth and Environmental Sciences \\
@@ -95,7 +107,25 @@ Contact     & david.kneis@uni-potsdam.de \\
 Project     & PROGRESS \\
 Sub-project & D2.2 \\
 Funding     & German Ministry of Education and Research (BMBF) \\
+\end{tabular}
+
+\vspace*{2cm}
+
+\textbf{Contributor(s):}\\
+\vspace*{2ex}
+
+\begin{tabular}{ll}
+Author      & Tobias Pilz \\
+Affiliation & Institute of Earth and Environmental Science \\
+            & University of Potsdam, Germany \\
+Contact     & tpilz@uni-potsdam.de \\
             & \\
+Funding     & GeoSim (Helmholtz graduate school) \\
+\end{tabular}
+
+\vspace*{2cm}
+
+\begin{tabular}{ll}
 Last update & \today{} \\
 \end{tabular}
 
@@ -161,6 +191,7 @@ Last update & \today{} \\
 \include{chapters/part_processes/channelFlow/channelFlow}
 \include{chapters/part_processes/evaporation/evaporation}
 \include{chapters/part_processes/evapotranspiration/evapotranspiration}
+\include{chapters/part_processes/meteo/meteo}
 \include{chapters/part_processes/reservoirStorage/reservoirStorage}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -188,8 +219,8 @@ Last update & \today{} \\
 \fancyhead[RE]{\bfseries Bibliography}
 \fancyhead[LO]{}
 \addcontentsline{toc}{chapter}{Bibliography}
-\bibliographystyle{../../_common/elsarticle-harv}
-\bibliography{/home/dkneis/literature/jabref/bib_hydrologicalModeling}
+\bibliographystyle{../_common/elsarticle-harv}
+\bibliography{../_common/bib_hydrologicalModeling}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%% THE APPENDIX %%%%%%%%%%%%%%%%%%%%%%%
