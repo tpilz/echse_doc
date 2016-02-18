@@ -57,7 +57,7 @@ To calculate saturation vapor pressure a number of different approaches exist us
 Over water:
 
 \begin{equation} \label{eqn:meteo:satVapPressWater}
-\satVaporPressureWater{} = 6.11 \cdot 10^{\frac{7.5 \cdot \airtemp{}}{273.3 + \airtemp{}}}
+\satVaporPressureWater{} = 6.11 \cdot 10^{\frac{7.5 \cdot \airtemp{}}{237.3 + \airtemp{}}}
 \end{equation}
 
 \noindent
@@ -94,7 +94,9 @@ As the relative humidity \relHumidity{} (\verb!relhum!) of air is defined as the
 \noindent
 Usage:\\
 \verb!vapPress_overWater(temp, relhum)!\\
-\verb!vapPress_overIce(temp, relhum)!
+\verb!vapPress_overIce(temp, relhum)!\\
+
+To get a higher accuracy, if applying \eqnref{eqn:meteo:vapPress} on a daily time step, it is advised to use paired values of \airtemp{} and \relHumidity{} as input, e.g. minimum \relHumidity{} and maximum \airtemp{} of a day or maximum \relHumidity{} and minimum \airtemp{}, as these typically occur simultaneously. Using daily averaged values induces a higher uncertainty due to the non-linearity of \satVaporPressure{(\airtemp{})}.
 
 
 \subsection{Vapor pressure deficit -- \vaporPressureDeficit} \label{sec:meteo:vappressdef}
@@ -110,7 +112,7 @@ Usage:\\
 The slope of the saturation vapor pressure temperature curve (\slopeSatVapCurve{} in [\si{\hecto\pascal\per\kelvin}]; in a more general sense also known as \emph{Clausius-Clapeyron} relation) is derived by differentiation of the saturation vapor pressure \satVaporPressure{} with respect to air temperature \airtemp{} (\verb!temp!). \citet{Dyck1995} derived the following equation by differentiation of the \emph{Magnus formula} (cf. \secref{sec:meteo:satvappress}) which is implemented in ECHSE (\airtemp{} in [\si{\degreeCelsius}]):
 
 \begin{equation} \label{eqn:meteo:slopeSatVapCurve}
-\slopeSatVapCurve{} = \frac{4098 \cdot \satVaporPressure{(\airtemp{})}}{\left( 273.3 + \airtemp{} \right)^2}
+\slopeSatVapCurve{} = \frac{4098 \cdot \satVaporPressure{(\airtemp{})}}{\left( 237.3 + \airtemp{} \right)^2}
 \end{equation}
 
 \noindent
@@ -289,15 +291,15 @@ For \solarConstant{} see \secref{sec:meteo:constants} and for \eccCorr{}, \dayTi
 To obtain \textbf{hourly} values the solar time angles at the beginning and the end of the hour of interest have to be respected. Furthermore, a correction for the local time zone has to be applied. Following equations 28 to 33 of FAO's \emph{Guidelines for computing crop water requirements, Chapter 3: Meteorological data} (\url{http://www.fao.org/docrep/X0490E/x0490e07.htm#calculation\%20procedures}) the subsequent relations are implemented in ECHSE:
 
 \noindent
-Calculation of the solar time angle $\omega_{mid}$ in [\si{\radian}] at the midpoint of the desired hour of the day $h$ (\verb!hour!, integer number):
+Calculation of the solar time angle $\omega_{mid}$ in [\si{\radian}] at the midpoint of the desired hour of the day \hour{} (\verb!hour!, integer number):
 
 \begin{multline}\label{eqn:meteo:radex_h:w_mid}
 \omega_{mid} = \frac{\pi}{12} \\
-\left\{ \left[ (h + 0.5) + 0.06667 \cdot (L_z - L_m) + S_c \right] - 12 \right\}
+\left\{ \left[ (h + 0.5) + 0.06667 \cdot (L_z - \lon) + S_c \right] - 12 \right\}
 \end{multline}
 
 \noindent
-with $L_m$ (\verb!L_m!) being the longitutde of the location of interest in decimal degrees west of Greenwich (e.g. Greenwich: \SI{0}{\degree}, New York: \SI{75}{\degree}, Berlin: \SI{346.5}{\degree}), $L_z$ the longitude of the center of the local time zone which is computed internally from the deviation of the local time zone from universal time (UTC) which has to be given as input (\verb!utc_add!, integer value of [\numrange[range-phrase=..]{-12}{14}])\footnote{\textbf{Note} that the value might change over the year in case of \emph{daylight saving time} and thus should be given as time series input rather than just being a fixed parameter!}, and $S_c$ a seasonal correction factor that is computed internally. Using that the solar time angles at begin and end of the hour of interest can be calculated:
+with \lon{} (\verb!L_m!) being the longitutde of the location of interest in decimal degrees west of Greenwich (e.g. Greenwich: \SI{0}{\degree}, New York: \SI{75}{\degree}, Berlin: \SI{346.5}{\degree}), $L_z$ the longitude of the center of the local time zone which is computed internally from the deviation of the local time zone from universal time (UTC) which has to be given as input (\verb!utc_add!, integer value of [\numrange[range-phrase=..]{-12}{14}])\footnote{\textbf{Note} that the value might change over the year in case of \emph{daylight saving time} and thus should be given as time series input rather than just being a fixed parameter!}, and $S_c$ a seasonal correction factor that is computed internally. Using that the solar time angles at begin and end of the hour of interest can be calculated:
 
 \begin{equation}\label{eqn:meteo:radex_h:w_ini_end}
 \begin{split}
@@ -339,7 +341,7 @@ utc_add,L_m)
 Shortwave radiation received by the surface is typically lower than \emph{extraterrestrial radiation} discussed in \secref{sec:meteo:radex} due to processes of absorption, scattering, and reflection in the Earth's atmosphere. It is typically measured at weather stations but can be calculated if no observations are available using the relation of {\AA}ngström (see textbooks, e.g. \citet{Maidment1993}):
 
 \begin{equation}\label{eqn:meteo:radshort}
-\radShortwaveIn{} = \left( a_s + b_s \frac{n}{N} \right) \radExtraterr{}
+\radShortwaveIn{} = \left( \angstA + \angstB \frac{n}{N} \right) \radExtraterr{}
 \end{equation}
 
 \noindent
@@ -355,35 +357,46 @@ doy,radex_a,radex_b)
 N = \dayTimeFac{} \frac{24}{\pi}
 \end{equation}
 
-$a_s$ (\verb!radex_a!) and $b_s$ (\verb!radex_b!) are the {\AA}ngström coefficients. The latter define the fraction of \radExtraterr{} that reaches the surface on completely cloudy ($a_s$) and days of clear sky ($a_s + b_s$), respectively. They can be estimated from measured values (e.g. from a near-by station) or derived from look-up tables (for average climates \citet{Maidment1993} suggests $a_s = \num{0.25}$ and $b_s = \num{0.50}$). Note that measurements of cloudiness (\verb!cloud!) as input to estimate $\frac{n}{N}$ are not yet supported (although the function interface includes it) but planned for the future.
+\angstA{} (\verb!radex_a!) and \angstB{} (\verb!radex_b!) are the {\AA}ngström coefficients. The latter define the fraction of \radExtraterr{} that reaches the surface on completely cloudy (\angstA{}) and days of clear sky ($\angstA + \angstB$), respectively. They can be estimated from measured values (e.g. from a near-by station) or derived from look-up tables (for average climates \citet{Maidment1993} suggests $\angstA = \num{0.25}$ and $\angstB = \num{0.50}$). Note that measurements of cloudiness (\verb!cloud!) as input to estimate $\frac{n}{N}$ are not yet supported (although the function interface includes it) but planned for the future.
 
-\textbf{Note} that units shown are needed for input, internal conversions are applied.
+\textbf{Note} that units shown are needed for input, internal conversions are applied. Furthermore this relation only works for \textbf{daily time steps} and returns \radShortwaveIn{} as daily average!
 
 
 \subsection{Maximum (clear-sky) incoming short-wave radiation -- \radShortwaveInClearsky} \label{sec:meteo:radshortmax}
-The maximum possible incoming short-wave radiation in case of clear sky (\radShortwaveInClearsky{} in [\si{\watt\per\metre\squared}]) is calculated analogue to \radShortwaveIn{} (cf. \secref{sec:meteo:radshort}) assuming full sunshine duration and thus $\frac{n}{N} = \num{1}$:
+The maximum possible incoming short-wave radiation in case of clear sky (\radShortwaveInClearsky{} in [\si{\watt\per\metre\squared}]) is calculated analogue to \radShortwaveIn{} (cf. \secref{sec:meteo:radshort}) assuming full sunshine duration and thus $\frac{n}{N} = \num{1}$ ($\verb!choice! = 1$):
 
-\begin{equation}\label{eqn:meteo:radshortmax}
+\begin{equation}\label{eqn:meteo:radshortmax_a}
 \radShortwaveInClearsky{} = \left( a_s + b_s \right) \radExtraterr{}
 \end{equation}
 
+However, \citet{Allen2005} recommend, in case no suitable values of \angstA{} and \angstB{} are available, an empirical relation depending on \radExtraterr{} and elevation above sea level ($h$, \verb!elev! in [\si{\metre}]) as input which has been incorporated in ECHSE as well ($\verb!choice! = 2$):
+
+\begin{equation}\label{eqn:meteo:radshortmax_b}
+\radShortwaveInClearsky{} = \left( 0.75 + \num{2e-5} h \right) \radExtraterr{}
+\end{equation}
+
 \noindent
-Usage:\\
-\verb!calc_glorad_max(radex,radex_a,radex_b)!
+Usage:
+\begin{verbatim}
+calc_glorad_max(choice, radex,
+radex_a,radex_b,elev)
+\end{verbatim}
+
+\textbf{Note} that all inputs have to be given when calling the formula. However, depending on your choice between the two functions, the input not needed can be set to a dummy value, preferably \num{-9999}.
 
 
 \subsection{Net emissivity -- \emissivity} \label{sec:meteo:emiss}
 Emissivity characterizes the effectiveness of a surface in emitting energy as thermal long-wave radiation. In this case the net emissivity between the Earth's surface and the atmosphere is sought which depends on the amount of water in the air and can thus be empirically related to the water vapor pressure (\vaporPressure{} in [\si{\hecto\pascal}]; cf. \secref{sec:meteo:vappress}) \citep{Maidment1993}:
 
 \begin{equation}\label{eqn:meteo:emis_1}
-\emissivity{} = a_e + b_e \sqrt{\vaporPressure{}}
+\emissivity{} = \emisa + \emisb \sqrt{\vaporPressure{}}
 \end{equation}
 
 \noindent
 Usage:
 \verb!net_emiss(temp,relhum,a,b)!\\
 
-The parameters $a_e$ and $b_e$ are in the range of \num{0.34} to \num{0.44} and \num{-0.25} to \num{-0.14}, respectively, whereas for average conditions the values $a_e = \num{0.34}$ and $b_e = \num{-0.14}$ are typically used \citep{Maidment1993}.
+The parameters \emisa{} and \emisb{} are in the range of \num{0.34} to \num{0.44} and \num{-0.25} to \num{-0.14}, respectively, whereas for average conditions the values $\emisa = \num{0.34}$ and $\emisb = \num{-0.14}$ are typically used \citep{Maidment1993}.
 
 If no measurements of relative humidity (\relHumidity{}, \verb!relhum! in [\si{\percent}]) for estimation of \vaporPressure{} are available, \emissivity{} can be as well estimated solely from temperature (\airtemp{}, \verb!temp! in [\si{\degreeCelsius}]) \citep{Maidment1993}:
 
@@ -398,14 +411,16 @@ If no measurements of relative humidity (\relHumidity{}, \verb!relhum! in [\si{\
 The cloudiness correction factor (\cloudCorrFac{}, dimensionless) is an empirical factor to correct calculations of long-wave radiation at the Earth's surface for cloud cover (cf. \secref{sec:meteo:radnetlong}). It can be calculated from the ratio of actual short-wave radiation (\radShortwaveIn{}, \verb!glorad! in [\si{\watt\per\metre\squared}]) to maximum short-wave radiation at clear sky (\radShortwaveInClearsky{}, \verb!glorad_max! in [\si{\watt\per\metre\squared}]) \citep{Maidment1993}:
 
 \begin{equation}\label{eqn:meteo:cloudcorr}
-\cloudCorrFac{} = a_c \frac{\radShortwaveIn{}}{\radShortwaveInClearsky{}} + b_c
+\cloudCorrFac{} = \cloudCorrFacA \frac{\radShortwaveIn{}}{\radShortwaveInClearsky{}} + \cloudCorrFacB
 \end{equation}
 
 \noindent
 Usage:
 \verb!f_cloud(glorad,glorad_max,a,b)!\\
 
-The long-wave radiation coefficients for clear skies $a_c$ and $b_c$ should be estimated from local radiation measurements. However, \citet{Maidment1993} suggests $a_c = \num{1.35}$ and $b_c = \num{-0.35}$ for arid areas, and $a_c = \num{1.00}$ and $b_c = \num{0.00}$ for humid areas.
+The long-wave radiation coefficients for clear skies \cloudCorrFacA{} and \cloudCorrFacB{} should be estimated from local radiation measurements. However, \citet{Maidment1993} suggests $\cloudCorrFacA = \num{1.35}$ and $\cloudCorrFacB = \num{-0.35}$ for arid areas, and $\cloudCorrFacA = \num{1.00}$ and $\cloudCorrFacB = \num{0.00}$ for humid areas.
+
+\textbf{Note} that this relation can be used for daily average values only! However, to avoid this problem the following workaround is suggested for hourly resolution: In your model engine, define \radShortwaveInClearsky{} and \radShortwaveIn{} as state variables (\verb!stateScal!). If $\radShortwaveInClearsky{} > 0$ update the state variables and use the values of \radShortwaveInClearsky{} and \radShortwaveIn{} in the usual manner. If $\radShortwaveInClearsky{} = 0$ it is nighttime and, thus, do not update the state variables but use the old values, i.e. the values of the last hour before sunset for further calculations. In this manner cloudiness of the hour before sunset is extrapolated over night.
 
 
 \subsection{Incoming net long-wave radiation -- \netRadiationLong} \label{sec:meteo:radnetlong}
@@ -454,3 +469,15 @@ daynight,delta_t)
 \end{verbatim}
 
 For monthly time scales further approaches exist depending on temperature, soil heat conductivity, and effective soil depth (cf. \citet{Maidment1993} or \url{http://www.fao.org/docrep/X0490E/x0490e07.htm#calculation\%20procedures}).
+
+
+\section{Turbulence}
+
+\subsection{Displacement height of vegetation -- \heightDisplace} \label{sec:meteo:heightdispl}
+
+\subsection{Roughness length} \label{sec:meteo:roughlen}
+
+\paragraph{For sensible heat flux -- \roughLenSen}
+
+\paragraph{For latent heat flux -- \roughLenLat}
+
