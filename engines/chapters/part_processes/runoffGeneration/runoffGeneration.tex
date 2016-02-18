@@ -161,7 +161,7 @@ Depending on the model's purpose and local conditions, the described runoff gene
 Symbol & Identifier & Units & Typical values & Details \\ \hline
 \soilWaterContent & \verb!wc! & -- & -- & Computed state variable \\
 \soilDepth & \verb!soildepth! & m & Rooted depth & -- \\
-\soilWaterContentMax & \verb!wc_max! & -- & 0.4--0.5 & \tabref{tab:et:real:soilmoisture} on page \pageref{tab:et:real:soilmoisture} \\
+\soilWaterContentMax & \verb!wc_max! & -- & 0.4--0.5 & \tabref{tab:eta:soilmoisture} on page \pageref{tab:eta:soilmoisture} \\
 \expSatFrac & \verb!exp_satfrac! & -- & 0.01--1 & See \figref{fig:runGen4comp_expSatFrac} \\
 \thresholdSurf & \verb!thr_surf! & m/s & --  & Values of 0 or near $\infty$ result in a 3 components model (see \eqnsref{eqn:runGen4comp_surfaceRunoff} \& \ref{eqn:runGen4comp_prefRunoff} ). \\
 \relSatInter & \verb!relsat_inter! & -- & 0.5 -- 0.8 & Number between 0 and 1. \\
@@ -190,6 +190,6 @@ The relation between the actual rate of ground water reacharge \rateRunoffBase{}
            &=& \dfrac{Q_{base}}{A} \cdot \left( \dfrac{0.95}{\relSat - 0.05} \right) \label{eqn:runGen4comp_parEstim_facBase_final}
 \end{eqnarray}
 
-In order to calculate \facBase{} from \eqnref{eqn:runGen4comp_parEstim_facBase_final} we have to supply an estimate of the soil saturation \relSat{} at the respective point in time (\ie{} the analyzed turning point). For the lower turning points, a reasonable guess can be obtained from the soil water content at the wilting point. For a silty soil, for example, the saturation \relSat{} would be $\approx$ 0.2 for a soil moisture at the wilting point of 0.1 and a maximum water content of 0.48 (see \tabref{tab:et:real:soilmoisture} on page~\pageref{tab:et:real:soilmoisture}).
+In order to calculate \facBase{} from \eqnref{eqn:runGen4comp_parEstim_facBase_final} we have to supply an estimate of the soil saturation \relSat{} at the respective point in time (\ie{} the analyzed turning point). For the lower turning points, a reasonable guess can be obtained from the soil water content at the wilting point. For a silty soil, for example, the saturation \relSat{} would be $\approx$ 0.2 for a soil moisture at the wilting point of 0.1 and a maximum water content of 0.48 (see \tabref{tab:eta:soilmoisture} on page~\pageref{tab:eta:soilmoisture}).
 
 The value of \facBase{} obtained from the hydrograph analysis is a crude estimate. However, it might help in the definition of a proper search range for \facBase{} in the context of automatic model calibration.

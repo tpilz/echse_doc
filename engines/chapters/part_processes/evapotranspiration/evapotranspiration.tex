@@ -2,114 +2,489 @@
 \renewcommand{\tabdir}{chapters/part_processes/evapotranspiration/tab}
 \renewcommand{\figdir}{chapters/part_processes/evapotranspiration/fig}
 
-\section{Introduction} \label{sec:et_intro}
+\section{Introduction} \label{sec:et:intro}
 
-This chapter describes approaches to model evapotranspiration. The focus is on very simple approaches relying on a two-step calculation procedure:
+This chapter describes approaches to model evapotranspiration. Two distinct calculation procedures exist:
 \begin{enumerate}
   \item Computation of a \emph{potential} evapotranspiration rate \etPot. This represents the maximum possible rate in the absence of water stress. It is basically limited by energy supply.
-  \item Estimation of the \emph{actual} evapotranspiration rate \etReal{} from the potential rate taking into account the properties of vegetation and the limitation by a soil moisture deficit.
+  \item Estimation of the \emph{actual} evapotranspiration rate \etReal{} taking into account the properties of vegetation and the limitation by a soil moisture deficit.
 \end{enumerate}
 
+Over past decades a large number of approaches has been developed, ranging from simple empirical to complex process-based ones. For a review of the historical development of both scientific knowledge and modeling of evapotranspiration the reader is referred to \cite{Shuttleworth2007}.
+
+Each of the functions introduced in the next sections can be called independently. However, to have a greater flexibility 'master functions' where defined taking all possible input variables and parameters, and a choice flag (in a model application this would preferably be a \verb!sharedParamNum!) internally calling the desired method with all relevant inputs. Note that, in general, all inputs have to be given but can be set to a dummy value in case it is not needed for the desired method.
+
+In the following the procedures so far incorporated in ECHSE including the 'master functions' \verb!et_pot! and \verb!et_act! shall be briefly described. Note that many approaches make use of meteorological quantities and relationships which are independently described in \chapref{chap:meteo}.
+
+\tabsref{tab:et:pot} and \ref{tab:et:act} list all input variables for the master functions in the order of occurrence (however, you are advised to look into the source code in case changes have not yet been included into the documentation!).
+
+\onecolumn
+\begin{center}
+\tablecaption{Argument list for ECHSE's master function \emph{et\_pot} in the order of occurrence (check the source code for the case of unreported changes!).  \label{tab:et:pot}}
+\tablefirsthead{}
+\tablehead{
+\multicolumn{5}{l}{\emph{Continued from previous page.}}\\ \hline
+}
+\tabletail{
+\hline
+\multicolumn{5}{l}{\emph{Continued on next page.}}\\
+}
+\tablelasttail{}
+\begin{supertabular}{|p{0.06\textwidth}p{0.15\textwidth}p{0.05\textwidth}p{0.23\textwidth}p{0.36\textwidth}|} \hline
+\rowcolor[gray]{0.9}
+\hline
+Symbol & Identifier & Unit & Explanation & Comment \\ \hline
+\multicolumn{5}{|l|}{Common meteorological variables}\\ \hline
+\airtemp & \verb!temper! & \si{\degreeCelsius} & Mean air temperature over time step & Mandatory; estimated from \airtempMin{} and \airtempMax{} if it is missing \\
+\airtempMin & \verb!temp_min! & \si{\degreeCelsius} & Minimum air temperature within time step & Currently only used to estimate \airtemp{} if it is missing \\
+\airtempMax & \verb!temp_max! & \si{\degreeCelsius} & Maximum air temperature within time step & Currently only used to estimate \airtemp{} if it is missing \\
+\radShortwaveIn & \verb!glorad! & \si{\watt\per\metre\squared} & Incoming short-wave radiation & Needed for energy balance based approaches; commonly measured but can be estimated from \verb!radex!, \verb!sundur!, \verb!cloud!, \verb!lat!, \verb!doy!, \verb!radex_a!, and \verb!radex_b!, \secref{sec:meteo:radshort} \\
+\relHumidity & \verb!rhum! & \si{\percent} & Relative humidity of air & Calculation of vapor pressure \\
+\windspeed & \verb!wind! & \si{\metre\per\second} & Wind speed averaged over time step & Estimation of \emph{aerodynamic resistance}, see \secref{sec:et:resist} \\
+\airPressure & \verb!apress! & \si{\hecto\pascal} & Air pressure at location & Estimation of \psychroConst{} and \densityAir{}; can also be estimated from \verb!elev!, \secref{sec:meteo:apress} \\
+\sundur & \verb!sundur! & \si{\hour} & Measured sunshine duration over time step & Calculation of \radShortwaveIn{} in case it is missing \\
+\cloudFraction & \verb!cloud! & \si{\percent} & Percentage of cloudiness & Not yet fully incorporated but included in the interface (use a dummy value)! \\
+\hline
+\multicolumn{5}{|l|}{Common site-secific parameters}\\ \hline
+\lat & \verb!lat! & dec. \si{\degree} & Latitude & Needed for calculation of \radExtraterr{} and \radShortwaveIn{}; use positive values for northern and negative values for southern hemisphere \\
+\lon & \verb!lon! & dec. \si{\degree} & Longitude & Currently only needed to calculate \radExtraterr{} at hourly resolution; defined as degrees west of Greenwich meridian, e.g. Greenwich: \SI{0}{\degree}, New York: \SI{75}{\degree}, Berlin: \SI{346.5}{\degree} \\
+$h$ & \verb!elev! & \si{\metre} & Elevation above sea level & Needed for calculation of \airPressure{} and \radShortwaveInClearsky{}\\
+\hline
+\multicolumn{5}{|l|}{Quantities of energy balance (commonly calculated internally)}\\ \hline
+\radExtraterr & \verb!radex! & \si{\watt\per\metre\squared} & Extraterrestrial radiation & Needed for energy balance based approaches; usually calculated from \verb!lat! and \verb!doy! (daily resolution) or \verb!lat!, \verb!doy!, \verb!hour!, \verb!utc_add!, and \verb!L_m! (hourly resolution), \secref{sec:meteo:radex} \\
+\radShortwaveInClearsky & \verb!glorad_max! & \si{\watt\per\metre\squared} & Incoming short-wave radiation under clear sky & Needed for energy balance based approaches to calculate the cloudiness correction factor; usually calculated from \verb!radex! and \verb!radex_a!, \verb!radex_b! or \verb!elev! \secref{sec:meteo:radshortmax} \\
+\netRadiation & \verb!H_net! & \si{\watt\per\metre\squared} & Net incoming short-wave + long-wave radiation & Needed for energy balance based approaches; usually calculated from a range of meteorological variables and parameters, see \secref{sec:meteo:radnet} \\
+\netRadiationSoil & \verb!H_soil! & \si{\watt\per\metre\squared} & Net incoming short-wave + long-wave radiation directly at soil surface & Needed for energy balance in SW approach (\secref{sec:et:sw}) \\
+\netRadiationLong & \verb!H_long! & \si{\watt\per\metre\squared} & Net incoming long-wave radiation & Needed for energy balance based approaches; usually calculated from a range of meteorological variables and parameters, see \secref{sec:meteo:radnetlong} \\
+\heatfluxSoil & \verb!soilheat! & \si{\watt\per\metre\squared} & Soil heat flux & Needed for energy balance based approaches; usually calculated, see \secref{sec:meteo:soilflux}; in SW calculated from \netRadiationSoil{} instead of \netRadiation{} \\
+\heatfluxVegSoil & \verb!totalheat! & \si{\watt\per\metre\squared} & Heat flux into soil AND storage of physical and biochemical energy in vegetation and atmosphere below measurement height & Needed for energy balance in SW approach (\secref{sec:et:sw}); so far calculated just as \heatfluxSoil{} from \netRadiation{} \\
+\hline
+\multicolumn{5}{|l|}{Meteorological parameters}\\ \hline
+\measHeightTemp & \verb!h_tempMeas! & \si{\metre} & Measurement height of air temperature & Calculation of \emph{aerodynamic resistance}, see \secref{sec:et:resist}; usually \SI{2}{\metre}\\
+\measHeightRelhum & \verb!h_humMeas! & \si{\metre} & Measurement height of relative humidity & Calculation of \emph{aerodynamic resistance}, see \secref{sec:et:resist}; usually \SI{2}{\metre}\\
+\measHeightWind & \verb!h_windMeas! & \si{\metre} & Measurement height of wind speed & Calculation of \emph{aerodynamic resistance}, see \secref{sec:et:resist}; usually \SI{2}{\metre}\\
+\emisa{},\emisb{} & \verb!emis_a!, \verb!emis_b! & -- & Emissivity parameters & See \secref{sec:meteo:emiss}\\
+\cloudCorrFacA{},\cloudCorrFacB{} & \verb!fcorr_a!, \verb!fcorr_b! & -- & Cloudiness coefficients & Parameters for calculation of \cloudCorrFac{}, see \secref{sec:meteo:cloudcorr}\\
+\angstA{},\angstB{} & \verb!radex_a!, \verb!radex_b! & -- & {\AA}ngström coefficients & Calculation of \radShortwaveIn{} and \radShortwaveInClearsky{}, see \secsref{sec:meteo:radshort}, \ref{sec:meteo:radshortmax}\\
+\soilheatDay{},\soilheatNight{} & \verb!f_day!, \verb!f_night! & -- & Coefficients for soil heat flux calculation & Calculation of \heatfluxSoil{}, see \secref{sec:meteo:soilflux}\\
+\hline
+\multicolumn{5}{|l|}{Vegetation and land-cover parameters and variables}\\ \hline
+\cropfacMak & \verb!crop_makk! & -- & Crop factor \emph{Makkink} & Calculation of land-cover specific \etPot{} after \emph{Makkink}, cf. \secref{sec:eta:cropfactors} \\
+\cropfacMak & \verb!crop_faoref! & -- & Crop factor \emph{FAO reference} & Calculation of land-cover specific \etPot{} following \emph{FAO reference evaporation model}, cf. \secsref{sec:et:fao_ref}, \ref{sec:eta:cropfactors}; simply set it to one if you want the reference evaporation \\
+\canoHeight & \verb!cano_height! & \si{\metre} & Canopy height & Calculation of \emph{aerodynamic resistance}, cf. \secref{sec:et:resist} \\
+\leafAreaIndex & \verb!lai! & \si{\metre\squared\per\metre\squared} & Leaf area index & Calculation of \emph{resistances}, cf. \secref{sec:et:resist} \\
+\albedo & \verb!alb! & -- & Albedo & Calculation of energy balance (\netRadiation{}), see \secref{sec:meteo:radnet} \\
+\canoExt & \verb!ext! & -- & Canopy's extinction coefficient & Extinction of incoming radiation by canopy expressed by the \emph{Beer-Lambert law}; needed for calculation of canopy surface resistance, see \secref{sec:et:resist} \\
+\resLeafMin & \verb!res_leaf_min! & \si{\second\per\metre} & Minimum stomatal resistance of a single leaf & Species-specific parameter; value gets up-scaled to whole canopy for calculation of canopy surface resistance, see \secref{sec:et:resist} \\
+\densitySoil & \verb!soil_dens! & \si{\kilo\gram\per\cubic\metre} & Bulk density of soil & Calculation of soil's \emph{surface resistance}; only for approaches explicitly accounting for surface resistance of soil, see \secref{sec:et:res:rss} \\
+\radShortHalf & \verb!glo_half! & \si{\watt\per\metre\squared} & Short-wave radiation at which stomatal conductance is half of its maximum & Species-specific parameter for calculation of canopy resistance, see \secref{sec:et:resist} \\
+\resMeanBound & \verb!res_b! & \si{\second\per\metre} & Mean boundary layer resistance & Parameter bulk boundary layer aerodynamic resistance of vegetative elements in the canopy; for two-layer approaches, see \secref{sec:et:res:rca} \\
+\dragCoef & \verb!drag_coef! & -- & Effective value of mean drag coefficient of vegetative elements & Parameter for calculation of aerodynamic resistance using approach of \citet{Shuttleworth1990}, see \secref{sec:et:resist} \\
+\roughSoil & \verb!rough_bare! & \si{\metre} & Roughness length of bare soil & Parameter for calculation of aerodynamic resistance, see \secref{sec:et:resist} \\
+\eddyDecay & \verb!eddy_decay! & -- & Eddy diffusivity decay constant & Parameter for calculation of aerodynamic resistance using approach of \citet{Shuttleworth1985}, see \secref{sec:et:resist} \\
+\rssa{}, \rssb{} & \verb!rss_a!, \verb!rssb! & -- & Parameters for calculation of soil surface resistance & Empirical parameters for calculation of soil surface resistance (needed for two-layer approaches) following \citet{Domingo1999}, see \secref{sec:et:resist} \\
+\hline
+\multicolumn{5}{|l|}{Computational parameters}\\ \hline
+\doy & \verb!doy! & -- & Day of the year (Julian day) & Calculation of \radShortwaveIn{} and \radExtraterr{} \\
+\hour & \verb!hour! & -- & Hour of day & Value in the range of \{0..23\}; only needed for calculation of hourly values of \radExtraterr{} \\
+\utcAdd & \verb!utc_add! & \si{\hour} & Deviation of local time zone from UTC & Value in the range of \{\num{-12}..\num{14}\}; can vary over the year due to daylight saving time; only needed for calculation of hourly values of \radExtraterr{} \\
+-- & \verb!na_val! & -- & Numeric value treated as \emph{not available (NA)} & Input quantities having the specified value will be internally treated as NA (e.g. for input checks) \\
+\deltat & \verb!delta_t! & \si{\second} & Time step length & Temporal resolution of the model; \textbf{use ECHSE's internal parameter!} (only argument for the \verb!simulate! method, cf. \citet{Echse-Main-Doc}) \\
+\hline
+\multicolumn{5}{|l|}{Choice flags}\\ \hline
+-- & \verb!choice! & -- & Choice of potential evapotranspiration model & 1: Makkink \newline 11: Penman-Monteith \newline 12: FAO reference evaporation \\
+-- & \verb!ch_rcs! & -- & Choice of canopy stomatal resistance model & See \secref{sec:et:resist} \\
+-- & \verb!ch_roughLen! & -- & Choice for calculation of roughness length & For calculation of aerodynamic resistance, \secref{sec:et:resist} \\
+-- & \verb!ch_plantDispl! & -- & Choice for calculation of displacement height & For calculation of aerodynamic resistance, \secref{sec:et:resist} \\
+-- & \verb!ch_gloradmax! & -- & Choice for calculation of \radShortwaveInClearsky{} & See \secref{sec:meteo:radshortmax} \\
+\hline
+\end{supertabular}
+\end{center}
+
+
+\begin{center}
+\tablecaption{Arguments for ECHSE's master function \emph{et\_act} \textbf{in addition} to those for \emph{et\_pot} listed in \tabref{tab:et:pot} (check the source code for the case of unreported changes!).  \label{tab:et:act}}
+\tablefirsthead{}
+\tablehead{
+\multicolumn{5}{l}{\emph{Continued from previous page.}}\\ \hline
+}
+\tabletail{
+\hline
+\multicolumn{5}{l}{\emph{Continued on next page.}}\\
+}
+\tablelasttail{}
+\begin{supertabular}{|p{0.06\textwidth}p{0.15\textwidth}p{0.05\textwidth}p{0.23\textwidth}p{0.36\textwidth}|} \hline
+\rowcolor[gray]{0.9}
+\hline
+Symbol & Identifier & Unit & Explanation & Comment \\ \hline
+\waterContTop & \verb!wc_vol_top! & \si{\cubic\metre\per\cubic\metre} & Volumetric water content of the top-most soil horizon & Needed for estimation of resistance against soil evaporation (\secref{sec:et:res:rss}) \\
+\waterContRoot & \verb!wc_vol_root! & \si{\cubic\metre\per\cubic\metre} & Volumetric water content of the root zone & Needed for estimation of soil moisture factor (\secref{sec:eta:soilmoisture}) or resistance against plant transpiration (\secref{sec:et:res:rcs}) \\
+\waterContSat & \verb!wc_sat! & \si{\cubic\metre\per\cubic\metre} & Volumetric water content at saturation of the root zone & Needed for estimation of resistance against plant transpiration (\secref{sec:et:res:rcs}) \\
+\waterContPwp & \verb!wc_pwp! & \si{\cubic\metre\per\cubic\metre} & Volumetric water content of the root zone at permanent wilting point & Needed for estimation of soil moisture factor (\secref{sec:eta:soilmoisture}) \\
+\waterContRes & \verb!wc_res! & \si{\cubic\metre\per\cubic\metre} & Residual volumetric water content of the root zone & Needed for estimation of resistance against plant transpiration (\secref{sec:et:res:rcs}) \\
+\waterContEtmax & \verb!wc_etmax! & \si{\cubic\metre\per\cubic\metre} & Parameter giving the minimum volumetric water content for actual evapotranspiration to be equal to the potential one & Needed for estimation of soil moisture factor (\secref{sec:eta:soilmoisture}); typically $\frac{\waterContEtmax}{\waterContFK}$ is a value of [\num{0.5}..\num{0.8}] with \waterContFK{} being \emph{field capacity} \\
+\bubblePress & \verb!bubble! & \si{\hecto\pascal} & Bubbling pressure of the root zone & Needed for estimation of resistance against plant transpiration (\secref{sec:et:res:rcs}); Parameter can be derived by pedotransfer functions; note that unit [\si{\hecto\pascal}] is approximately equal to [\si{\centi\metre} of water] \\
+\PoresInd & \verb!pores_ind! & -- & Pore-size-index of the root zone & Needed for estimation of resistance against plant transpiration (\secref{sec:et:res:rcs}); Parameter can be derived by pedotransfer functions \\
+\sucStressMin & \verb!wstressmin! & \si{\hecto\pascal} & Capillary suction at minimum water stress (stomata completely open) & Needed for estimation of resistance against plant transpiration (\secref{sec:et:res:rcs}); Species-specific plant parameter; note that unit [\si{\hecto\pascal}] is approximately equal to [\si{\centi\metre} of water] \\
+\sucStressMax & \verb!wstressmax! & \si{\hecto\pascal} & Capillary suction at maximum water stress (total stomata closure, wilting point) & Needed for estimation of resistance against plant transpiration (\secref{sec:et:res:rcs}); Species-specific plant parameter; note that unit [\si{\hecto\pascal}] is approximately equal to [\si{\centi\metre} of water] \\
+\condVapPressPar & \verb!par_stressHum! & \si{\per\hecto\pascal} & Empirical parameter & Needed for calculation of water vapor deficit stomatal conductance stress factor (\secref{sec:et:res:rcs}) \\
+\hline
+\end{supertabular}
+\end{center}
+\twocolumn
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{Potential evapotranspiration} \label{sec:et:pot}
-
-\section{Hargreaves model} \label{sec:et:pot:hargreaves}
-
-This is a very simply model yielding estimates of \etPot{} with daily resolution. It requires as input
-\begin{itemize}
-  \item Incoming short-wave radiation
-  \item Daily minimum and maximum temperature
-\end{itemize}
-
-If the radiation is given as a daily average value (instead of a sum), the Hargreaves model takes the form of \eqnref{eqn:et:pot:hargreaves}
-
-\begin{align} \label{eqn:et:pot:hargreaves}
-  \etPot = & CH \cdot \left( \frac{t_{max}+t_{min}}{2} + CT \right) \cdot \\
-           & \sqrt{t_{max}-t_{min}} \cdot 0.0864 \cdot \radShortwaveIn{} \nonumber
-\end{align}
-
-with
-
-\medskip
-\begin{tabular}{p{0.25\columnwidth}p{0.55\columnwidth}}
-  \etPot & Hargreaves potential evapotranspiration rate (mm/day) \\
-  $t_{max}$, $t_{min}$ & Daily minimum and maximum of air temperature (\celsius) \\
-  \radShortwaveIn{} & Daily average of incoming short-wave radiation (W/\sqm{}) \\
-  0.0864 & Factor to convert \radShortwaveIn{} from W/\sqm{} into MJ/\sqm{}/day \\
-  $CH$ & Empirical coefficient, $CH$= 0.0023 \\
-  $CT$ & Empirical coefficient, $CT$= 17.8 \\
-\end{tabular}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-\section{Makkink model} \label{sec:et:pot:makkink}
+\section{Models} \label{sec:et:models}
 
-The Makkink model is another simple approach to estimate potential evaporation using only temperature and downward short-wave radiation as predictors. The approach is discussed in detail by \citet{deBruin1987, Feddes1987, Hiemstra2011}.
+\subsection{Empirical equations}\label{sec:et:emp}
 
-Using convenient units, the basic equation without an additive empirical constant \citep[see][]{deBruin1987} is \eqnref{eqn:et:pot:makkink}
 
-\begin{equation} \label{eqn:et:pot:makkink}
+% ATTENTION: commented out Hargreaves model as I think there is an error:
+% incoming short-wave radiation should actually be extraterrestrial radiation?!
+% It is furthermore not included in ECHSE
+%\subsection{Hargreaves model} \label{sec:et:pot:hargreaves}
+%
+%This is a very simply model yielding estimates of \etPot{} with daily resolution. It requires as input
+%\begin{itemize}
+%  \item Incoming short-wave radiation
+%  \item Daily minimum and maximum temperature
+%\end{itemize}
+%
+%If the radiation is given as a daily average value (instead of a sum), the Hargreaves model takes the form of \eqnref{eqn:et:pot:hargreaves}
+%
+%\begin{align} \label{eqn:et:pot:hargreaves}
+%  \etPot = & CH \cdot \left( \frac{t_{max}+t_{min}}{2} + CT \right) \cdot \\
+%           & \sqrt{t_{max}-t_{min}} \cdot 0.0864 \cdot \radShortwaveIn{} \nonumber
+%\end{align}
+%
+%with
+%
+%\medskip
+%\begin{tabular}{p{0.25\columnwidth}p{0.55\columnwidth}}
+%  \etPot & Hargreaves potential evapotranspiration rate (mm/day) \\
+%  $t_{max}$, $t_{min}$ & Daily minimum and maximum of air temperature (\celsius) \\
+%  \radShortwaveIn{} & Daily average of incoming short-wave radiation (W/\sqm{}) \\
+%  0.0864 & Factor to convert \radShortwaveIn{} from W/\sqm{} into MJ/\sqm{}/day \\
+%  $CH$ & Empirical coefficient, $CH$= 0.0023 \\
+%  $CT$ & Empirical coefficient, $CT$= 17.8 \\
+%\end{tabular}
+
+
+\subsubsection{Makkink model} \label{sec:et:makkink}
+
+The Makkink model is simple approach to estimate potential evaporation using only temperature (\verb!temper!), downward short-wave radiation (\verb!glorad!), and air pressure (\verb!apress!; or estimated from elevation, see \secref{sec:meteo:apress}) as predictors. The approach is discussed in detail by \citet{deBruin1987, Feddes1987, Hiemstra2011}.
+
+Using convenient units, the basic equation without an additive empirical constant \citep[see][]{deBruin1987} is \eqnref{eqn:et:makkink}
+
+\begin{equation} \label{eqn:et:makkink}
   \etPot = c \cdot \frac{s}{s + \gamma} \cdot \frac{\radShortwaveIn}{1000 \cdot \evapHeatWater \cdot \densityWater}
 \end{equation}
 
-with
+\noindent
+usage
+\begin{verbatim}
+et_pot_makkink(glorad,temper,apress,
+cropfactor)
+\end{verbatim}
 
+\noindent
+with\\ \vspace*{2ex}
+
+\noindent
 \medskip
 \begin{tabular}{lp{0.8\columnwidth}}
   \etPot & Makkink reference crop-evaporation (m/s) \\
-  $s$ & Slope of the curve of saturation water vapor pressure (kPa / K) \\
-  $\gamma$ & Psychrometric constant (kPa / K) \\
-  $\radShortwaveIn$ & Incoming short-wave radiation (W/\sqm{}) \\
-  $\evapHeatWater$ & Latent heat of water evaporation (kJ/kg) \\
+  $s$ & Slope of the curve of saturation water vapor pressure (kPa / K); see \secref{sec:meteo:slopevappress} \\
+  $\gamma$ & Psychrometric constant (kPa / K); see \secref{sec:meteo:psychro} \\
+  $\radShortwaveIn$ & Incoming short-wave radiation (W/\sqm{}); see \secref{sec:meteo:radshort} \\
+  $\evapHeatWater$ & Latent heat of water evaporation (kJ/kg); see \secref{sec:meteo:evapheat} \\
   $\densityWater$ & Density of water ($\approx$ 1000 kg/\cbm{}) \\
   $1000$ & Factor to convert kJ into J \\
   $c$ & Dimensionless empirical constant, $c$=0.65 \\
-\end{tabular}
+\end{tabular}\\
+
+\textbf{Note} that, to derive \etPot{} for a specific site with certain land-cover, \eqnref{eqn:et:makkink} still has to be multiplied by a crop factor (\verb!cropfactor!, see \secref{sec:eta:cropfactors}). Accounting for soil moisture deficit will finally lead to \emph{actual} evapotranspiration \etReal{} (see \secref{sec:eta:soilmoisture}).
 
 
-The latent heat of water evaporation \evapHeatWater{} (kJ/kg) is simply a function of temperature (see \eqnref{eqn:evap_makkink_evapHeatWater} on page~\pageref{eqn:evap_makkink_evapHeatWater}). For the dimensionless term $s/(s + \gamma)$ \citet{Yao2009} present a convenient approximation based on the air temperature (see \eqnref{eqn:evap_makkink_dimlessFraction} on page~\pageref{eqn:evap_makkink_dimlessFraction}). A more accurate estimate is obtained, however, using the empirical expressions for $s$ and $\gamma$ (both in hPa/K) from \eqnref{eqn:slopeSatVapPress} and \eqnref{eqn:psychroConst}
 
-\begin{align} 
-  s=& 6.11 \cdot exp\left(\frac{17.3 \cdot \airtemp}{237.3 + \airtemp} \right) \cdot \label{eqn:slopeSatVapPress} \\
-    & \frac{4105.3}{(237.3 + \airtemp)^2} \nonumber \\
-  \gamma=& 0.016286 \cdot \frac{\airPressure}{\evapHeatWater(\airtemp)} \label{eqn:psychroConst}
-\end{align}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-where \airPressure{} is the air pressure (hPa) and \airtemp{} is the air temperature  in \celsius{} \citep{Dyck1995}.
+\subsection{Process-based approaches}\label{sec:et:proc}
+
+\subsubsection{Penman-Monteith equation} \label{sec:et:penmon}
+
+The famous equation of \emph{Penman-Monteith} is a widely used physically-based approach of modelling evapotranspiration. That means, in contrast to purely empirical approaches, it explicitly simulates the governing physical processes whereas the individual components, however, might still rely on empirical relationships. 
+
+The formula takes into account the energy available for evapotranspiration in the canopy and the vapor pressure deficit. It further incorporates resistance to evapotranspiration due to \emph{(a)} stomatal resistance of the canopy, i.e. the movement of water through the stomata of leaves controlled by the plant, termed \emph{surface resistance}, and \emph{(b)} the transfer of water vapor from the surface of evapotranspiration into the atmosphere by turbulent diffusion, termed \emph{aerodynamic resistance}, which is controlled by wind speed and the roughness of the surface. In analogy to \emph{Ohm's law} applied in electrotechnic the resistances are treated as a network of resistances connected in series.
+
+The \emph{Penman-Monteith} equation further relies on the \emph{big leaf} simplification, i.e. the vegetation canopy is treated as a single big leaf, and the vegetation being uniformly distributed over the area of interest neglecting evaporation from bare soil. The relation should therefore be applied only at sites of uniform crop vegetation with closed canopy. Over forests and sites of heterogeneous and/or sparse (natural) vegetation with exposed soil the \emph{big leaf} approach would be inoperative.
+
+More detailed information on the model can be obtained from textbooks, e.g. \citet{Maidment1993} or \citet{Dyck1995}. The formula is:
+
+\begin{multline} \label{eqn:et:penmon}
+  \etPot =  \frac{1}{\evapHeatWater{}} \\
+  \left[ \frac{\slopeSatVapCurve{} (\netRadiation{} - \heatfluxSoil{}) + \densityAirMoist{} \specHeatAir{} (\satVaporPressure{} - \vaporPressure{}) / \resAero}{\slopeSatVapCurve{} + \psychroConst{} (1 + \resCanopy / \resAero)} \right]
+\end{multline}
+
+\noindent
+usage
+\begin{verbatim}
+etp_penmon(lambda,delta,H_net,G,
+rho_air,ez_0,ez,gamma,r_c,r_a)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.8\columnwidth}}
+  \etPot & Potential evapotranspiration under given meteorological and land-cover conditions assuming unlimited water supply (m/s) \\
+  \evapHeatWater & Latent heat of water evaporation; see \secref{sec:meteo:evapheat} \\
+  \slopeSatVapCurve & Slope of the curve of saturation water vapor pressure; see \secref{sec:meteo:slopevappress} \\
+  \netRadiation & Incoming net (short- and long-wave) radiation; see \secref{sec:meteo:radnet} \\
+  \heatfluxSoil & Soil heat flux; see \secref{sec:meteo:soilflux} \\
+  \densityAirMoist & Density of air; see \secref{sec:meteo:densairmoist} \\
+  \specHeatAir & Specific heat of moist air; see \secref{sec:meteo:constants} \\
+  \satVaporPressure & Water vapor pressure at saturation; see \secref{sec:meteo:satvappress} \\
+  \vaporPressure & Water vapor pressure; see \secref{sec:meteo:vappress} \\
+  \psychroConst & Psychrometric constant; see \secref{sec:meteo:psychro} \\
+  \resAero & Aerodynamic resistance; see \secref{sec:et:resist} \\
+  \resCanopy & Canopy surface resistance; see \secref{sec:et:resist} \\
+\end{supertabular}\\
+
+
+\subsubsection{FAO reference evaporation} \label{sec:et:fao_ref}
+The \emph{Food and Agricultural Organization of the United Nations (FAO)} published guidelines for the computation of crop water requirements by estimation of evapotranspiration based on the \emph{Penman-Monteith} equation which are freely accessible online via \url{http://www.fao.org/docrep/X0490E/x0490e00.htm}. For simplification and generalization a so-called \emph{reference crop} was defined, a hypothetical well-watered and uniform grass vegetation of \SI{0.12}{\metre} height with a fixed \emph{surface resistance} of \SI{70}{\second\per\metre} and an albedo of \num{0.23}. For the calculation of potential evapotranspiration for that reference vegetation (\etRef{} in \si{\metre\per\second}), the so-called \emph{FAO reference evaporation}, two approaches for daily and hourly time steps, respectively, have been adopted and implemented into ECHSE:
+
+\begin{multline} \label{eqn:et:fao_ref_d}
+  \etRefDaily = \\
+  \frac{0.408 \slopeSatVapCurve{} (\netRadiation{} - \heatfluxSoil{}) + \psychroConst \frac{900}{\airtemp + 273} \windspeed (\satVaporPressure{} - \vaporPressure{})}{\slopeSatVapCurve{} + \psychroConst{} (1 + 0.34 \windspeed)}
+\end{multline}
+\begin{multline} \label{eqn:et:fao_ref_h}
+  \etRefHourly = \\
+  \frac{0.408 \slopeSatVapCurve{} (\netRadiation{} - \heatfluxSoil{}) + \psychroConst \frac{37}{\airtemp + 273} \windspeed (\satVaporPressure{} - \vaporPressure{})}{\slopeSatVapCurve{} + \psychroConst{} (1 + 0.34 \windspeed)}
+\end{multline}
+
+
+\noindent
+usage
+\begin{verbatim}
+etp_penmon_ref(temper,wind,
+apress,delta,H_net,ez_0,ez,
+h_windMeas,delta_t)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.8\columnwidth}}
+  \etRef & FAO reference evaporation (\si{\metre\per\second}) \\
+  \airtemp & Air temperature (\si{\degreeCelsius}) \\
+  \windspeed & Wind speed (\si{\metre\per\second}) \\
+  \slopeSatVapCurve & Slope of the curve of saturation water vapor pressure; see \secref{sec:meteo:slopevappress} \\
+  \netRadiation & Incoming net (short- and long-wave) radiation; see \secref{sec:meteo:radnet} \\
+  \heatfluxSoil & Soil heat flux; see \secref{sec:meteo:soilflux} \\
+  \satVaporPressure & Water vapor pressure at saturation; see \secref{sec:meteo:satvappress} \\
+  \vaporPressure & Water vapor pressure; see \secref{sec:meteo:vappress} \\
+  \psychroConst & Psychrometric constant; see \secref{sec:meteo:psychro} \\
+\end{supertabular}\\ \vspace*{2ex}
+
+
+This simplified approach can be used if necessary data to apply \eqnref{eqn:et:penmon} are not available. However, to actually derive the potential evapotranspiration for your location you still need to multiply the result with a land-cover specific \emph{crop factor} (cf. \secref{sec:eta:cropfactors}).
+
+\textbf{Note} that applying this simplified relation may result in some errors due to the amount of implicit assumptions. Especially when hourly values are calculated the presumed constant value of \emph{surface resistance} over the whole day may lead to underprediction over daytime and overpredictions over nighttime where errors should compensate one another when summed over the day.
+
+\textbf{Note} that internal adjustments are applied which are not shown in the presented equations to derive the mentioned units from the reported units of input variables.
+
+
+\subsubsection{Shuttleworth-Wallace} \label{sec:et:sw}
+The model of \citet{Shuttleworth1985} (henceforth also termed \textbf{SW model}) is an enhancement of the \emph{Penman-Monteith} equation (\secref{sec:et:penmon}). It relaxes the \emph{big leaf} assumption by an advanced resistance scheme to better account for a clumped vegetation containing patches of bare soil. The model is thus suitable for application in semi-arid environments and over agricultural fields containing sparse crops without a closed canopy. Yet it should be not applied at forest sites.
+
+The approach uses a one-dimensional model of energy partition into a part for closed vegetation and bare soil, respectively. It further introduces additional resistances to account for the resistance of soil against evaporation. Transpiration from the canopy \etTransp{} (in [\si{\metre\per\second}]) and evaporation from bare soil \etEvap{} (in [\si{\metre\per\second}]) can then be separately calculated as:
+
+\begin{multline} \label{eqn:et:sw_ets}
+\etEvap =  \frac{1}{\evapHeatWater} \left[ \frac{\slopeSatVapCurve A_s + \densityAirMoist \specHeatAir \vapPresDefCano / \resSA}{\slopeSatVapCurve + \psychroConst (1 + \resSoil / \resSA)} \right]
+\end{multline}
+
+\noindent
+usage
+\begin{verbatim}
+et_sw_soil(lambda,delta,H_soil,
+soilheat,rho_air,D_0,gamma,
+r_ss,r_sa)
+\end{verbatim}
+
+\begin{multline} \label{eqn:et:sw_etc}
+\etTransp =  \frac{1}{\evapHeatWater} \left[ \frac{\slopeSatVapCurve (A - A_s) + \densityAirMoist \specHeatAir \vapPresDefCano / \resCA}{\slopeSatVapCurve + \psychroConst (1 + \resCanopy / \resCA)} \right]
+\end{multline}
+
+\noindent
+usage
+\begin{verbatim}
+et_sw_cano(lambda,delta,H_net,
+H_soil,totalheat,soilheat,
+rho_air,D_0,gamma,r_cs,r_ca)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.75\columnwidth}}
+  \evapHeatWater & Latent heat of water evaporation; see \secref{sec:meteo:evapheat} \\
+  \slopeSatVapCurve & Slope of the curve of saturation water vapor pressure; see \secref{sec:meteo:slopevappress} \\
+  $A_s$ & Total energy available at soil surface: $A_s = \netRadiationSoil - \heatfluxSoil$ \\
+  $A$ & Total energy available at measurement height (above canopy): $A = \netRadiation - \heatfluxVegSoil$ \\
+  \netRadiation & Incoming net (short- and long-wave) radiation; see \secref{sec:meteo:radnet} \\
+  \netRadiationSoil & Incoming net (short- and long-wave) radiation hitting the soil surface \\
+  \heatfluxSoil & Soil heat flux; see \secref{sec:meteo:soilflux} \\
+  \heatfluxVegSoil & Heat flux into soil AND vegetation \\
+  \densityAirMoist & Density of air; see \secref{sec:meteo:densairmoist} \\
+  \specHeatAir & Specific heat of moist air; see \secref{sec:meteo:constants} \\
+  \vapPresDefCano & Vapor pressure deficit \textbf{at canopy source height} \\
+  \psychroConst & Psychrometric constant; see \secref{sec:meteo:psychro} \\
+  \resCA & Bulk boundary layer resistance of the vegetative elements in the canopy; see \secref{sec:et:resist} \\
+  \resCanopy & Canopy surface resistance; see \secref{sec:et:resist} \\
+  \resSA & Aerodynamic resistance between soil and canopy source height; see \secref{sec:et:resist} \\
+  \resSoil & Surface resistance of soil; see \secref{sec:et:resist} \\
+\end{supertabular}\\ \vspace*{2ex}
+
+To calculate the vapor pressure deficit at canopy source height \vapPresDefCano{} either measurements of air temperature and relative humidity at canopy source height have to be given (\vapPresDefCano{} can then be calculated as described in \secref{sec:meteo:vappressdef}) or from the energy balance whereas the total latent heat flux ($\evapHeatWater \et$) has already to be known:
+
+\begin{multline} \label{eqn:et:sw_d0}
+\vapPresDefCano =  \vaporPressureDeficit + \frac{\resAero}{\densityAirMoist \specHeatAir} \left[ \slopeSatVapCurve A - (\slopeSatVapCurve + \psychroConst) \evapHeatWater \et \right]
+\end{multline}
+
+\noindent
+usage
+\begin{verbatim}
+vapPressDeficit_canopy(H_net,
+totalheat,gamma,delta,lambda,
+vapPressDeficit,r_aa,et_total,
+rho_air)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\begin{supertabular}{lp{0.8\columnwidth}}
+  \et & Total evapotranspiration, i.e. $\etEvap + \etTransp$\\
+  \resAero & Aerodynamic resistance between canopy source height and reference level; see \secref{sec:et:resist} \\
+   \vaporPressureDeficit & Vapor pressure deficit \textbf{at reference/measurement height}; see \secref{sec:meteo:vappressdef} \\
+\end{supertabular}\\ \vspace*{2ex}
+
+\citet{Shuttleworth1985} also present a set of formulas to calculate total evapotranspiration where \vapPresDefCano{} was eliminated:
+
+\begin{equation} \label{eqn:et:sw_et}
+\et = \frac{1}{\evapHeatWater} \left[ C_c PM_c + C_s PM_s \right]
+\end{equation}
+
+where $PM_c$ and $PM_s$ are terms for transpiration from canopy and evaporation from soil, respectively, which are calculated following Penman-Monteith:
+
+\begin{equation} \label{eqn:et:sw_et_pmc}
+PM_c = \frac{\slopeSatVapCurve A + (\densityAirMoist \specHeatAir \vaporPressureDeficit - \slopeSatVapCurve \resCA A_s) / (\resAero + \resCA)}{\slopeSatVapCurve + \psychroConst \left[ 1 + \resCanopy / (\resAero + \resCA) \right] }
+\end{equation}
+
+\begin{equation} \label{eqn:et:sw_et_pms}
+PM_s = \frac{\slopeSatVapCurve A + \left[ \densityAirMoist \specHeatAir \vaporPressureDeficit - \slopeSatVapCurve \resSA (A - A_s) \right] / (\resAero + \resSA)}{\slopeSatVapCurve + \psychroConst \left[ 1 + \resSoil / (\resAero + \resSA) \right] }
+\end{equation}
+
+with the coefficients:
+
+\begin{equation} \label{eqn:et:sw_et_cc}
+C_c = \frac{1}{1 + R_c R_a / R_s (R_c + R_a)}
+\end{equation}
+
+\begin{equation} \label{eqn:et:sw_et_cs}
+C_s = \frac{1}{1 + R_s R_a / R_c (R_s + R_a)}
+\end{equation}
+
+and:
+
+\begin{equation} \label{eqn:et:sw_et_ra}
+R_a = (\slopeSatVapCurve + \psychroConst) \resAero
+\end{equation}
+
+\begin{equation} \label{eqn:et:sw_et_rc}
+R_c = (\slopeSatVapCurve + \psychroConst) \resSA + \resSoil
+\end{equation}
+
+\begin{equation} \label{eqn:et:sw_et_rs}
+R_s = (\slopeSatVapCurve + \psychroConst) \resCA + \resCanopy
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+et_sw(lambda,delta,H_net,H_soil,
+totalheat,soilheat,rho_air,ez_0,
+ez,gamma,r_cs,r_ca,r_ss,r_sa,r_aa)
+\end{verbatim}
+
+Thus, if you want to obtain canopy transpiration and soil evaporation separately, first apply \eqnsref{eqn:et:sw_et} to \ref{eqn:et:sw_et_rs} to obtain total \et{}, use this to calculate \vapPresDefCano{} using \eqnref{eqn:et:sw_d0}, and finally calculate \etTransp{} and \etEvap{} using \eqnsref{eqn:et:sw_etc} and \ref{eqn:et:sw_d0}, respectively.
+
+
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Real evapotranspiration} \label{sec:et:real}
+
+\section{Actual vs. potential evapotranspiration} \label{sec:et:act}
+To calculate \emph{actual} evapotranspiration two distinct approaches are included in ECHSE. The first calculates \emph{potential} evapotranspiration which is then reduced depending on \emph{crop factors} and a \emph{soil moisture factor} considering the current soil moisture state. This approach is described in \secref{sec:eta:redfunc} and is applied to all empirical models described in \secref{sec:et:emp} and to the FAO reference evaporation. The second approach is more physically based by incorporating the current soil moisture state in the calculation of \emph{surface resistances} (see \secref{sec:et:resist}).
+
+
+\subsection{Reduction functions} \label{sec:eta:redfunc}
 
 In the approaches described here, the rate of real evapotranspiration \etReal{} is computed by multiplying the potential rate \etPot{} with dimensionless correction factors. Typically, these factors account for
 \begin{itemize}
-  \item the different transpiration characteristics of the actual vegetation as compared to the reference vegetation to which \etPot{} refers (usually short grass). These factors are known as \emph{crop factors} (\secref{sec:et:real:cropfactors}).
-  \item the reduction of plant transpiration due to soil moisture limitation (\secref{sec:et:real:soilmoisture}).
+  \item the different transpiration characteristics of the actual vegetation as compared to the reference vegetation to which \etPot{} refers (usually short grass). These factors are known as \emph{crop factors} (\secref{sec:eta:cropfactors}).
+  \item the reduction of plant transpiration due to soil moisture limitation (\secref{sec:eta:soilmoisture}).
 \end{itemize}
 
-\subsection{Crop factors} \label{sec:et:real:cropfactors}
+\subsubsection{Crop factors} \label{sec:eta:cropfactors}
 
-For some equations to estimate \etPot{}, an extensive set of crop factors has been established based on empirical research. The values vary between different crops and also account for the different stages of plant grow, \ie{} seasonality. For the Makkink model (\secref{sec:et:pot:makkink}), crop factors can be found in \citet{Feddes1987}. For wider applicability, it is desireable to derive the crop factors from other easily available data. A potential candidate is the leaf-area index \leafAreaIndex. Based on figure \figref{fig:et:real:cropfactor-LAI}, an approximate relation between the crop factor of the Makkink model and the \leafAreaIndex{} can be derived (\eqnref{eqn:et:real:cropfactor-LAI}).
+For some equations to estimate \etPot{}, an extensive set of crop factors has been established based on empirical research. The values vary between different crops and also account for the different stages of plant grow, \ie{} seasonality. For the Makkink model (\secref{sec:et:makkink}), crop factors can be found in \citet{Feddes1987}. Guidelines on crop coefficients can also be obtained from the FAO, together with their approach on reference evaporation included in ECHSE and described in \secref{sec:et:fao_ref}, freely accessible online via \url{http://www.fao.org/docrep/X0490E/x0490e00.htm}.
 
-\begin{equation} \label{eqn:et:real:cropfactor-LAI}
+For wider applicability, it is desirable to derive the crop factors from other easily available data. A potential candidate is the leaf-area index \leafAreaIndex. Based on figure \figref{fig:et:real:cropfactor-LAI}, an approximate relation between the crop factor of the Makkink model and the \leafAreaIndex{} can be derived:
+
+\begin{equation} \label{eqn:eta:cropfactor-LAI}
   \text{crop factor} \approx 0.14 \cdot \leafAreaIndex + 0.4 
 \end{equation}
 
-Note that, following the conventional definition of \etPot{}, the crop factor should take a value of one for the reference crop (typically actively growing gras of 12~cm height with unlimited water supply). Assuming that the corresponding \leafAreaIndex{} is about 5 \citep[see, \eg][]{Misra1981} or \citep[][page 11]{Bremicker2006}, the simplest linear approach would be \eqnref{eqn:et:real:cropfactor-LAI-simple}.
+Note that, following the conventional definition of \etPot{}, the crop factor should take a value of one for the reference crop (typically actively growing gras of 12~cm height with unlimited water supply). Assuming that the corresponding \leafAreaIndex{} is about 5 \citep[see, \eg][]{Misra1981} or \citep[][page 11]{Bremicker2006}, the simplest linear approach would be:
 
-\begin{equation} \label{eqn:et:real:cropfactor-LAI-simple}
+\begin{equation} \label{eqn:eta:cropfactor-LAI-simple}
   \text{crop factor} \approx 0.2 \cdot \leafAreaIndex
 \end{equation}
 
 This equation, however, implies that evapotranspiration from bare soil is zero. In reality, a non-zero intercept is more plausible.
 
-During calibration of a hydrological model for the Upper Neckar Basin (Germany), the relation shown in \eqnref{eqn:et:real:cropfactor-LAI-Neckar} was identified. It yielded the best result for a larger part of the catchment (gage Kirchtellinsfurt, 2300~\sqkm). The optimum parameters for smaller sub-basins were similar. The assumed \leafAreaIndex{} of grassland vegetation in that model was 5.
+During calibration of a hydrological model for the Upper Neckar Basin (Germany), the relation shown in \eqnref{eqn:eta:cropfactor-LAI-Neckar} was identified. It yielded the best result for a larger part of the catchment (gage Kirchtellinsfurt, 2300~\sqkm). The optimum parameters for smaller sub-basins were similar. The assumed \leafAreaIndex{} of grassland vegetation in that model was 5.
 
-\begin{equation} \label{eqn:et:real:cropfactor-LAI-Neckar}
+\begin{equation} \label{eqn:eta:cropfactor-LAI-Neckar}
   \text{crop factor} \approx 0.16 \cdot \leafAreaIndex + 0.2 
 \end{equation}
 
@@ -121,42 +496,331 @@ During calibration of a hydrological model for the Upper Neckar Basin (Germany),
   \caption[Relation between the crop factor (for Makkink model) and the leaf-area index (\sqm/\sqm) for two selected crops.]{Relation between the crop factor (for Makkink model) and the leaf-area index (\sqm/\sqm) for two selected crops. Crop factors and the corresponding values of \leafAreaIndex{} were taken from \citet{Feddes1987} and \citet{Ludwig2006}, respectively. \label{fig:et:real:cropfactor-LAI}}
 \end{figure}
 
-\subsection{Influence of soil moisture} \label{sec:et:real:soilmoisture}
+\textbf{Note} that so far the master functions for evapotranspiration \verb!et_pot! and \verb!et_act! simply take the crop factor as input. It has to be determined during the pre-processing or within your model engine. So far, none of the aforementioned methods is included in the process definitions.
 
-A widely used scheme to account for the limitation of real evapotranspiration by soil moisture is illustrated in \figref{fig:et:real:soilmoisture}. This approach uses two empirical constants $rs_{et min}$ and $rs_{et max}$ representing threshold values of relative soil saturation. For very dry soil with relative saturation between 0 and $rs_{et min}$, real evapotranspiration is zero. For wet conditions with relative saturation between $rs_{et max}$ and 1, the rate of real evapotranspiration \etReal{} is equal to the potential rate \etPot{}. For intermediate conditions, \etReal{} is assumed to vary linearily with soil saturation (\ie{} soil moisture). Mathematically, this is expressed by \eqnref{eqn:et:real:soilmoisture}.
+\subsubsection{Soil moisture factor} \label{sec:eta:soilmoisture}
 
-\begin{equation} \label{eqn:et:real:soilmoisture}
+A widely used scheme to account for the limitation of real evapotranspiration by soil moisture is illustrated in \figref{fig:eta:soilmoisture}. This approach uses two empirical constants $rs_{et min}$ and $rs_{et max}$ representing threshold values of relative soil saturation. For very dry soil with relative saturation between 0 and $rs_{et min}$, real evapotranspiration is zero. For wet conditions with relative saturation between $rs_{et max}$ and 1, the rate of real evapotranspiration \etReal{} is equal to the potential rate \etPot{}. For intermediate conditions, \etReal{} is assumed to vary linearily with soil saturation (\ie{} soil moisture). Mathematically, this is expressed by:
+
+\begin{equation} \label{eqn:eta:soilmoisture}
   \frac{\etReal}{\etPot} = min\left(1, max\left(0, \frac{rs-rs_{et min}}{rs_{et max}-rs_{et min}} \right)\right)
 \end{equation}
 
 \begin{figure}
   \centering
   \includegraphics[width=0.6\columnwidth]{\figdir/soilMoistureEffect.eps}
-  \caption{Ratio of real to potential evapotranspiration \etReal/\etPot{} as a function of relative soil saturation $rs$. \label{fig:et:real:soilmoisture}}
+  \caption{Ratio of real to potential evapotranspiration \etReal/\etPot{} as a function of relative soil saturation $rs$. \label{fig:eta:soilmoisture}}
 \end{figure}
 
-In this definition, the relative soil saturation $rs$ is the quotient of the current soil water content $\soilWaterContent$ and the soil-specific maximum value $\soilWaterContentMax$. Thus, the two parameters $rs_{et min}$ and $rs_{et max}$ take values in range 0 to 1. A reasonable estimate for $rs_{et min}$ can be obtained from data on the water content at the wilting point. This value varies considerably between soil types as illustrated in \figref{fig:et:real:pFCurve}.
+In this definition, the relative soil saturation $rs$ is the quotient of the current soil water content $\soilWaterContent$ and the soil-specific maximum value $\soilWaterContentMax$. Thus, the two parameters $rs_{et min}$ and $rs_{et max}$ take values in range 0 to 1. A reasonable estimate for $rs_{et min}$ can be obtained from data on the water content at the wilting point. This value varies considerably between soil types as illustrated in \figref{fig:eta:pFCurve}.
 
 \begin{figure}
   \centering
   \includegraphics[width=0.9\columnwidth]{\figdir/pF_and_waterContent.eps}
-  \caption{Typical relation between water content and suction pressure for different soil types. The permanent wilting point is defined as pF=4.2 ($\approx$ 1500 kPa). The hatching marks the typical range of the field capacity found in soils. Adapted from \citet{Scheffer1998}. \label{fig:et:real:pFCurve}}
+  \caption{Typical relation between water content and suction pressure for different soil types. The permanent wilting point is defined as pF=4.2 ($\approx$ 1500 kPa). The hatching marks the typical range of the field capacity found in soils. Adapted from \citet{Scheffer1998}. \label{fig:eta:pFCurve}}
 \end{figure}
 
-Some characteristic values of soil water content (based on \figref{fig:et:real:pFCurve}) and the corresponding estimates of model parameters are presented in \tabref{tab:et:real:soilmoisture}.
+Some characteristic values of soil water content (based on \figref{fig:eta:pFCurve}) and the corresponding estimates of model parameters are presented in \tabref{tab:eta:soilmoisture}.
 
 \begin{table}
-  \caption{Characteristic values of the soil water content $\soilWaterContent$ and corresponding estimates of model parameters derived from \figref{fig:et:real:pFCurve}. \label{tab:et:real:soilmoisture}}
+  \caption{Characteristic values of the soil water content $\soilWaterContent$ and corresponding estimates of model parameters derived from \figref{fig:eta:pFCurve}. \label{tab:eta:soilmoisture}}
   {\small
   \begin{tabular}{|rlllll|} \hline
     \rowcolor[gray]{0.9}
          &                        & $\soilWaterContent$ at & $\soilWaterContent$ at & & \\
     \rowcolor[gray]{0.9}
     Soil & $\soilWaterContentMax$ & pF=2.5 & pF=4.2 & $rs_{et max}$ & $rs_{et min}$ \\ \hline
-    Sand & 0.43 & 0.03 & 0.02 & < 0.07 & 0.05 \\
-    Silt & 0.48 & 0.3  & 0.1  & < 0.63 & 0.21 \\
-    Clay & 0.53 & 0.46 & 0.32 & < 0.86 & 0.6 \\
+    Sand & 0.43 & 0.03 & 0.02 & $< 0.07$ & 0.05 \\
+    Silt & 0.48 & 0.3  & 0.1  & $< 0.63$ & 0.21 \\
+    Clay & 0.53 & 0.46 & 0.32 & $< 0.86$ & 0.6 \\
   \hline
   \end{tabular} 
   }
 \end{table}
+
+\textbf{Note} that this approach is automatically applied to all empirical approaches (\secref{sec:et:emp}) and the FAO reference evaporation when calling \verb!et_act!. $rs_{et min}$ is automatically set to permanent wilting point (\waterContPwp{}) and $rs_{et max}$ is a calibration parameter (\waterContEtmax{}) but should take a value such that $\frac{\waterContEtmax}{\waterContFK}$ is a value of [\num{0.5}..\num{0.8}] with \waterContFK{} being \emph{field capacity}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\subsection{Resistances} \label{sec:et:resist}
+During the diffusion of water vapor through air several factors hinder the water molecules on their way. These factors are commonly called \emph{resistances} and are, in analogy to \emph{Ohm's law}, generally defined as $resistance = water \; vapor \; gradient / water \; vapor \; flux$. Depending on the modeling approach several sources of resistance to evapotranspiration can be defined and related to each other (cf. \secsref{sec:et:penmon}, \ref{sec:et:act}). In analogy to electrotechnic the resistances are treated as a network connected in series or parallel.
+
+In the following several resistances including their modeling approaches implemented in ECHSE shall be introduced.
+
+
+\subsubsection{Aerodynamic resistances}
+Wind blowing over a rough surface (e.g. soil or the top of a vegetation canopy) induces \emph{turbulence}, i.e. an ill-defined yet coherent movement of air. Turbulence is a much more efficient transport mechanism than molecular diffusion for water molecules through the air. It causes a vertical exchange of moist air above a vaporizing surface with drier air from higher levels of the atmosphere. This mechanism is controlled by \emph{atmospheric resistance}.
+
+In a Penman-Monteith model this type of resistance induced by the atmosphere is the only form of resistance that is accounted for. In the SW approach it is split into resistance to water transfer between canopy source height and reference height (\resAero{}), bulk boundary layer resistance within the canopy (\resCA{}), and aerodynamic resistance between the substrate surface and reference height over bare soil (\resSA{}).
+
+
+\paragraph{Aerodynamic resistance between canopy and reference level -- \resAero{}}
+When applying Penman-Monteith the following equation is commonly used to calculate \emph{aerodynamic resistance} (\resAero{}) assuming a logarithmic wind profile and a neutral atmospheric layering \citep{Maidment1993,Dyck1995}:
+
+\begin{equation} \label{eqn:et:res:raa}
+\resAero = \frac{ln \left[ (\measHeightWind - \heightDisplace) / \roughLenSen \right] ln \left[ (\measHeightRelhum - \heightDisplace) / \roughLenLat \right]}{\karmanConst^2 \windspeed}
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+res_aero(ch_plantDispl,ch_roughLen,
+h_windMeas,h_humMeas,h_tempMeas,
+wind,cano_height,rough_bare,
+lai,drag_coef)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.75\columnwidth}}
+  \windspeed & Horizontal wind speed \\
+  \measHeightWind & Measurement height of horizontal wind speed \\
+  \measHeightRelhum & Measurement height of humidity \\
+  \heightDisplace & Displacement height of the vegetation, see \secref{sec:meteo:heightdispl} \\
+  \roughLenSen & Roughness length for sensible heat flux, see \secref{sec:meteo:roughlen} \\
+  \roughLenLat & Roughness length for latent heat flux, see \secref{sec:meteo:roughlen} \\
+  \karmanConst & Von K\'arm\'an constant, see \tabref{tab:meteo:constants} \\
+\end{supertabular}\\ \vspace*{2ex}
+
+In the presentation paper of their evapotranspiration model \citet{Shuttleworth1985} present an approach using the same underlying theory but with a more detailed description of the decay of eddy diffusion integrated from the top of canopy (meaning $(\heightDisplace + \roughLenSen)$) to reference height of meteorological measurements (\measHeightWind{}):
+
+\begin{multline} \label{eqn:et:res:raa_sw}
+\resAero = \frac{ln \left[ (\measHeightWind - \heightDisplace) / \roughLenSen \right]}{\karmanConst^2 \windspeed} \\
+\biggl\{ ln \left[ (\measHeightWind - \heightDisplace) / (\canoHeight - \heightDisplace) \right] + \\
+\frac{\canoHeight}{\eddyDecay (\canoHeight - \heightDisplace)} \\
+\biggl[ exp \left[ \eddyDecay (1 - (\heightDisplace + \roughLenSen) / \canoHeight ) \right] - 1 \biggr] \biggr\}
+\end{multline}
+
+\noindent
+usage
+\begin{verbatim}
+res_aa(wind,h_windMeas,cano_height,
+h_plantDispl,rough_len,eddy_decay)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.75\columnwidth}}
+  \canoHeight & Vegetation canopy height \\
+  \eddyDecay & Eddy diffusivity decay constant; \citet{Shuttleworth1985} use a value of \num{2.5} \\
+\end{supertabular}\\ \vspace*{2ex}
+
+
+\paragraph{Aerodynamic resistance between the substrate and canopy source height -- \resSA{}}
+This resistance can be, in principle, described as above. However, eddy diffusion is integrated from the soil surface (meaning the roughness length of bare soil (\roughSoil{}), a parameter commonly set to \num{0.01}) to the top of the canopy (meaning $(\heightDisplace + \roughLenSen)$) \citep{Shuttleworth1985, Shuttleworth1990}:
+
+\begin{multline} \label{eqn:et:res:rsa_sw}
+\resSA = \frac{ln \left[ (\measHeightWind - \heightDisplace) / \roughLenSen \right]}{\karmanConst^2 \windspeed} \frac{\canoHeight}{\eddyDecay (\canoHeight - \heightDisplace)} \\
+\biggl[ exp \left[ \eddyDecay (1 - \roughSoil / \canoHeight) \right] - \\
+exp \left[ \eddyDecay (1 - (\heightDisplace + \roughLenSen) / \canoHeight ) \right] \biggr]
+\end{multline}
+
+\noindent
+usage
+\begin{verbatim}
+res_sa(wind,h_windMeas,cano_height,
+h_plantDispl,rough_len,eddy_decay,
+rough_bare)
+\end{verbatim}
+
+
+\paragraph{Bulk boundary layer resistance of the vegetative elements in the canopy -- \resCA{}}\label{sec:et:res:rca}
+After water molecules left a leaf through the leaf's stomata they have to pass a laminar boundary layer within the vegetation canopy before they enter the free and turbulent air. Within this boundary layer air is moving slowly resulting in a poorly mixed and saturated state and, thus, forming a resistance to water vapor movement.
+
+While Penman-Monteith does not explicitly account for this kind of resistance it is directly accounted for in the SW approach. Here it simply varies inversely with the Leaf Area Index (\leafAreaIndex{}) and depends on the parameter of mean boundary layer resistance of per unit area of vegetation (\resMeanBound{}) which \citet{Shuttleworth1985} considered to be of minor significance and set to \SI{25}{\second\per\metre} based on field studies:
+
+\begin{equation} \label{eqn:et:res:rca}
+\resCA = \frac{\resMeanBound}{2 \leafAreaIndex}
+\end{equation}
+
+\noindent
+usage\\
+\verb!res_ca(lai,res_b)!
+
+
+\subsubsection{Surface resistances}
+\paragraph{Bulk stomatal resistance of the canopy -- \resCanopy{}} \label{sec:et:res:rcs}
+The process of plant transpiration is mainly caused by the diffusion of water molecules through openings in the leaves, the so-called \emph{stomata}. The process can be actively influenced by the plant by closing or opening the stomata depending on the current conditions. The resulting resistance against transpiration is called \emph{stomatal resistance}.
+
+The \emph{minimum} resistance in case of unlimited water supply is a species-dependent parameter (\resLeafMin{}). The \emph{actual} resistance depends on the degree of stress the plant currently experiences. In ECHSE it is calculated following the frequently applied approach of \citet{Jarvis1976}:
+
+\begin{equation} \label{eqn:et:res:jarvis}
+\resLeafAct = \resLeafMin \frac{1}{\condStress}
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+res_stom_leaf(res_leaf_min,cond_rad,
+cond_co2,cond_temp,cond_vap,
+cond_water)
+\end{verbatim}
+
+Here \condStress{} is the combined stress factor, a value in the range of zero (maximum stress) to one (no stress). It is the product of independent stress factors, viz. radiation, $CO_2$, temperature, vapor pressure deficit, and soil water stress. The factors are of varying importance, depend on species and environmental conditions, and no generally accepted approaches for their calculation exist. ECHSE so far incorporates approaches for the calculation of soil water stress (\condSoilWat{}) and the vapor pressure deficit stress factor (\condVapPress{}). The other factors are so far neglected, partly because they were not yet relevant (this approach was herein so far only applied for NE Brazil where temperature stress was assumed negligible) or because the effects are still heavily debated ($CO_2$ and radiation stress). It should further be noted that in the model of \citet{Jarvis1976} all stress factors are implicitly assumed to be independent of each other which is not necessarily the case.
+
+To calculate soil water stress first the current capillary suction (\capilSuc{}) is calculated following the relationships of \emph{Van Genuchten} as given in \citet{Maidment1993}:
+
+\begin{equation} \label{eqn:et:res:stress_suc}
+\capilSuc = \Biggl[ \frac{1}{\Bigl( \frac{\waterContRoot - \waterContRes}{\waterContSat - \waterContRes} \Bigr)^{\frac{1}{m}}} - 1 \Biggr]^{\frac{1}{\PoresInd + 1}} \bubblePress
+\end{equation}
+
+\noindent
+and finally, similar to an approach by \citet{Hanan1997}:
+
+\begin{equation} \label{eqn:et:res:stress_wat}
+\condSoilWat = 
+\begin{cases}
+1 & \mbox{if } \capilSuc < \sucStressMin \\
+1 - \frac{\capilSuc - \sucStressMin}{\sucStressMax - \sucStressMin} & \mbox{if } \sucStressMin \leq \capilSuc < \sucStressMax \\
+0.01 & \mbox{if } \capilSuc \geq \sucStressMax
+\end{cases}
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+stress_soilwater(wc,wc_sat,wc_res,
+bubble,pores_ind,wstressmin,
+wstressmax)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.75\columnwidth}}
+  \waterContRoot & Actual volumetric water content of the root zone \\
+  \waterContRes & Residual volumetric water content of the root zone \\
+  \waterContSat & Volumetric water content at saturation of the root zone \\
+  $m$ & Parameter: $m = \frac{\PoresInd}{\PoresInd + 1}$ \\
+  \PoresInd & Pore-size index \\
+  \bubblePress & Bubbling capillary pressure \\
+  \sucStressMin & Capillary suction at minimum water stress (stomata completely open) \\
+  \sucStressMax & Capillary suction at maximum water stress (total stomata closure, wilting point) \\
+\end{supertabular}\\ \vspace*{2ex}
+
+\textbf{Note} that \eqnref{eqn:et:res:stress_suc} is only a simplification and does not account for hysteresis (i.e. different matric potential to soilwater content relationships during wetting and drying, respectively). Furthermore, the calculation is strongly parameterization dependent.
+
+For stress resulting from vapor pressure deficit (\condVapPress{}) \citet{Jarvis1976} assume a linear empirical relationship of increasing plant stress with increasing deficit (\vaporPressureDeficit{}) depending on a species-specific parameter (\condVapPressPar{}; see \citet{Jarvis1976} and \citet{Hanan1997} for example values):
+
+\begin{equation} \label{eqn:et:res:stress_vap}
+\condVapPress = \frac{1}{1 + \condVapPressPar \vaporPressureDeficit}
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+stress_humidity(vap_deficit,
+par_stressHum)
+\end{verbatim}
+
+\textbf{Note} that \vaporPressureDeficit{} in \eqnref{eqn:et:res:stress_vap} has to be determined \textbf{within} the canopy. This is often neglected due to a lack of data. However, as \vaporPressureDeficit{} outside the canopy (where measurements are commonly taken) certainly is much larger than within the canopy the resulting error is not necessarily negligible.
+
+After computing the combined stress factor (\condStress) and the \emph{actual} surface resistance of a single leaf (\resLeafAct{}) using \eqnref{eqn:et:res:jarvis} the bulk surface resistance of the whole canopy still has to be obtained. In ECHSE two approaches are incorporated. The first (\verb!ch_rcs = 1!) is a simple relationship depending on the actual leaf area index (\leafAreaIndex{}) only \citep{Shuttleworth1985}:
+
+\begin{equation} \label{eqn:et:res:rcs1}
+\resCanopy = \frac{\resLeafAct}{2 \leafAreaIndex{}}
+\end{equation}
+
+A second and physically more meaningful but also more parameter intensive approach (\verb!ch_rcs = 2!) was adopted from \citet{Saugier1991}:
+
+\begin{equation} \label{eqn:et:res:rcs2}
+\resCanopy = \frac{\resLeafAct \canoExt}{ln \bigl[ \frac{\radShortHalf + \canoExt \radShortwaveIn}{\radShortHalf + \canoExt \radShortwaveIn exp (- \canoExt \leafAreaIndex)} \bigr]}
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+res_cs(ch_rcs,lai,res_ST,
+ext,glorad,glorad_half)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.75\columnwidth}}
+  \radShortwaveIn & Incoming short-wave radiation (above canopy) \\
+  \canoExt & Canopy extinction coefficient \\
+  \radShortHalf & Solar radiation for which stomatal conductance is half of its maximum value \\
+\end{supertabular}\\ \vspace*{2ex}
+
+
+\paragraph{Surface resistance of the substrate -- \resSoil{}} \label{sec:et:res:rss}
+In analogy to leaves the evaporating soil constitutes a resistance against evaporation as well. With decreasing soil water content the soil dries out from the top. Thus, water molecules have to move through pores with poorly mixed and possibly well saturated air before they reach the well-mixed atmosphere.
+
+So far only a very simple empirical relationship is integrated in ECHSE derived from \citet{Domingo1999}:
+
+\begin{equation} \label{eqn:et:res:rss}
+\resSoil = \rssa \waterContGrav^{\rssb}
+\end{equation}
+
+\noindent
+usage
+\begin{verbatim}
+res_ss(soilwat_grav,rss_a,rss_b)
+\end{verbatim}
+
+\noindent
+with\\ \vspace*{2ex}
+
+\tablefirsthead{}
+\tablehead{}
+\tabletail{}
+\tablelasttail{}
+\begin{supertabular}{lp{0.75\columnwidth}}
+  \waterContGrav & \textbf{Gravimetric} soil water content; can be estimated from soil water content of the top-most horizon (\waterContTop{}), density of water ($\SI{1000}{\kilo\gram\per\cubic\metre}$), and bulk density (\densitySoil): $\waterContGrav = \frac{\waterContTop \cdot 1000}{\densitySoil}$\\
+  \rssa{}, \rssb{} & Empirical parameters \\
+\end{supertabular}\\ \vspace*{2ex}
+
+\citet{Domingo1999} report values of $\rssa = \num{15.4}$ and $\rssb = \num{-0.76}$ for bare soil, and $\rssa = \num{37.5}$ and $\rssb = \num{-1.23}$ under shrub vegetation in {SE} Spain, respectively.
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\section{Contributions and TODOs}
+So far ECHSE incorporates only a few approaches compared to the large number of, especially, empirical approaches that exist. Contributions are very welcome and can be easily made. Use the following workaround:
+
+\begin{enumerate}
+\item Write a function for the approach into the processes source code file \verb!hydro/evap/et_approaches.h!
+\item Make the approach accessible via the master functions \verb!et_pot! (file: \verb!hydro/evap/et_pot.h!) and \verb!et_act! (file: \verb!hydro/evap/et_act.h!); extent the input argument lists if necessary
+\item Update the documentation using the latex file: \verb!echse_doc/engines/chapters/! \verb!part_processes/evapotranspiration/! \verb!evapotranspiration.tex!
+\item Open a pull request on github for the process update (\url{https://github.com/echse/echse_engines}) and the update of the documentation (\url{https://github.com/echse/echse_doc})
+\end{enumerate}
+
+The following work still has to be done or issues need to be resolved:
+
+\begin{itemize}
+\item Add more approaches (especially empirical approaches, e.g. Haude, Hargreaves, Priestly-Taylor, Turc, etc.)
+\item Implement an approach for estimation of the crop factor, e.g. following the descriptions of \secref{sec:eta:cropfactors} or using the FAO guidelines, Part B and C: \url{http://www.fao.org/docrep/x0490e/x0490e00.htm}
+\item Complete approaches for soil stress factor estimation and / or implement more or better approaches (\secref{sec:et:res:rcs})
+\item Add more or better (physically-based?) approaches for estimation of soil surface resistance (\secref{sec:et:res:rss})
+\item Add more or better approaches to estimate the soil moisture factor (\secref{sec:eta:soilmoisture})
+\item Implement pedotransfer functions to estimate soil parameters from more readily available texture parameters (simplifies the pre-processing)
+\end{itemize}

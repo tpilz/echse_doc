@@ -8,9 +8,12 @@
 \newcommand{\precipIntensity}{\ensuremath{PI}}
 \newcommand{\windspeed}{\ensuremath{WS}}
 \newcommand{\airtemp}{\ensuremath{TA}}
+\newcommand{\airtempMin}{\ensuremath{TA_{min}}}
+\newcommand{\airtempMax}{\ensuremath{TA_{max}}}
 \newcommand{\airPressure}{\ensuremath{PA}}
 \newcommand{\relHumidity}{\ensuremath{RH}}
 \newcommand{\solarRadiation}{\ensuremath{SR}}
+\newcommand{\sundur}{\ensuremath{n}}
 
 % Variables related to moisture / humidity
 \newcommand{\specHumidity}{\ensuremath{q}}
@@ -20,7 +23,8 @@
 \newcommand{\satVaporPressure}{\ensuremath{E}}
 \newcommand{\satVaporPressureIce}{\ensuremath{E_i}}
 \newcommand{\satVaporPressureWater}{\ensuremath{E_w}}
-\newcommand{\vaporPressureDeficit}{\ensuremath{{\Delta}E}}
+\newcommand{\vaporPressureDeficit}{\ensuremath{D}}
+\newcommand{\vapPresDefCano}{\ensuremath{D_0}}
 \newcommand{\slopeSatVapCurve}{\ensuremath{s}}
 \newcommand{\psychroConst}{\ensuremath{\gamma}}
 
@@ -42,16 +46,25 @@
 \newcommand{\snowFractionLiquid}{\ensuremath{SLF}}
 \newcommand{\snowRelSaturation}{\ensuremath{RSS}}
 
+% other
+\newcommand{\measHeightTemp}{\ensuremath{z_t}}
+\newcommand{\measHeightRelhum}{\ensuremath{z_h}}
+\newcommand{\measHeightWind}{\ensuremath{z_w}}
+
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % HYDRO-METEOROLOGICAL PROCESS RATES AND RELATED CONVERSION FACTORS
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Energy fluxes
 \newcommand{\netRadiation}{\ensuremath{R_{net}}}
+\newcommand{\netRadiationSoil}{\ensuremath{R_{net,soil}}}
 \newcommand{\netRadiationShort}{\ensuremath{R_{netS}}}
 \newcommand{\netRadiationLong}{\ensuremath{R_{netL}}}
-\newcommand{\heatfluxSens}{\ensuremath{R_{sens}}}
-\newcommand{\heatfluxSoil}{\ensuremath{R_{soil}}}
+\newcommand{\heatfluxSens}{\ensuremath{H_{sens}}}
+\newcommand{\heatfluxSoil}{\ensuremath{G_{soil}}}
+\newcommand{\heatfluxVegSoil}{\ensuremath{G_{total}}}
 
 \newcommand{\radLongwaveOut}{\ensuremath{R_{outL}}}
 \newcommand{\radLongwaveIn}{\ensuremath{R_{inL}}}
@@ -70,9 +83,17 @@
 \newcommand{\massfluxSubl}{\ensuremath{M_{subl}}}
 \newcommand{\massfluxFlow}{\ensuremath{M_{flow}}}
 
-% Others
-\newcommand{\albedoChangeRate}{\ensuremath{G_{alb}}}
-\newcommand{\albedo}{\ensuremath{\mu}}
+% Evapotranspiration
+\newcommand{\et}{\ensuremath{et}}
+\newcommand{\etPot}{\ensuremath{et_{pot}}}
+\newcommand{\etRef}{\ensuremath{et_{ref}}}
+\newcommand{\etRefDaily}{\ensuremath{et_{ref,d}}}
+\newcommand{\etRefHourly}{\ensuremath{et_{ref,h}}}
+\newcommand{\etReal}{\ensuremath{et_{act}}}
+\newcommand{\etTransp}{\ensuremath{et_{c}}}
+\newcommand{\etEvap}{\ensuremath{et_{s}}}
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % PHYSICAL CONSTANTS AND CONCEPTUAL PARAMETERS USED IN HYDRO-METEOROLOGY
@@ -81,8 +102,9 @@
 % Densities
 \newcommand{\densityWater}{\ensuremath{\rho_{w}}}
 \newcommand{\densityIce}{\ensuremath{\rho_{i}}}
-\newcommand{\densityAir}{\ensuremath{\rho_{air,dry}}}
-\newcommand{\densityAirMoist}{\ensuremath{\rho_{air,moist}}}
+\newcommand{\densityAir}{\ensuremath{\rho_{air}}}
+\newcommand{\densityAirDry}{\ensuremath{\rho_{air,dry}}}
+\newcommand{\densityAirMoist}{\ensuremath{\rho_{air}}}
 \newcommand{\densitySnow}{\ensuremath{\rho_{snow}}}
 \newcommand{\densitySnowDry}{\ensuremath{\rho_{snow,dry}}}
 \newcommand{\densitySoil}{\ensuremath{\rho_s}}
@@ -114,6 +136,15 @@
 \newcommand{\emissivity}{\ensuremath{\varepsilon}}
 \newcommand{\cloudCorrFac}{\ensuremath{f}}
 
+\newcommand{\emisa}{\ensuremath{\varepsilon_a}}
+\newcommand{\emisb}{\ensuremath{\varepsilon_b}}
+\newcommand{\cloudCorrFacA}{\ensuremath{f_a}}
+\newcommand{\cloudCorrFacB}{\ensuremath{f_b}}
+\newcommand{\angstA}{\ensuremath{a_s}}
+\newcommand{\angstB}{\ensuremath{b_s}}
+\newcommand{\soilheatDay}{\ensuremath{c_d}}
+\newcommand{\soilheatNight}{\ensuremath{c_n}}
+
 \newcommand{\solarConstant}{\ensuremath{R_{SC}}}
 
 % Stoichiometry factors and functions used in the snow model
@@ -130,13 +161,42 @@
 \newcommand{\snowAlbedoDecrConst}{\ensuremath{k_{AS}}}
 \newcommand{\leafAreaIndexFullShadow}{\ensuremath{LAI_{r0}}}
 
-% Evapotranspiration
-\newcommand{\etPot}{\ensuremath{et_{pot}}}
-\newcommand{\etReal}{\ensuremath{et_{act}}}
-\newcommand{\leafAreaIndex}{\ensuremath{LAI}}
-
 % Turbulence
 \newcommand{\karmanConst}{\ensuremath{\kappa}}
+\newcommand{\heightDisplace}{\ensuremath{d}}
+\newcommand{\roughLenSen}{\ensuremath{z_{om}}}
+\newcommand{\roughLenLat}{\ensuremath{z_{ov}}}
+
+% Resistances to evapotranspiration
+\newcommand{\resCanopy}{\ensuremath{r_{cs}}}
+\newcommand{\resCA}{\ensuremath{r_{ca}}}
+\newcommand{\resSoil}{\ensuremath{r_{ss}}}
+\newcommand{\resSA}{\ensuremath{r_{sa}}}
+\newcommand{\resAero}{\ensuremath{r_{aa}}}
+\newcommand{\resLeafAct}{\ensuremath{r_{l,act}}}
+
+\newcommand{\condStress}{\ensuremath{\Phi_{stress}}}
+\newcommand{\condSoilWat}{\ensuremath{\Phi_{wat}}}
+\newcommand{\condVapPress}{\ensuremath{\Phi_{vap}}}
+\newcommand{\condVapPressPar}{\ensuremath{a_{vap}}}
+
+
+% Land-cover parameters
+\newcommand{\cropfacMak}{\ensuremath{c_{Makk}}}
+\newcommand{\canoHeight}{\ensuremath{h_{cano}}}
+\newcommand{\leafAreaIndex}{\ensuremath{LAI}}
+\newcommand{\albedoChangeRate}{\ensuremath{G_{alb}}}
+\newcommand{\albedo}{\ensuremath{\mu}}
+\newcommand{\canoExt}{\ensuremath{\epsilon}}
+\newcommand{\resLeafMin}{\ensuremath{r_{l,min}}}
+\newcommand{\radShortHalf}{\ensuremath{g_{srad}}}
+\newcommand{\resMeanBound}{\ensuremath{r_{b}}}
+\newcommand{\dragCoef}{\ensuremath{c_{d}}}
+\newcommand{\roughSoil}{\ensuremath{z_{r,s}}}
+\newcommand{\eddyDecay}{\ensuremath{n}}
+\newcommand{\rssa}{\ensuremath{k_{rss,a}}}
+\newcommand{\rssb}{\ensuremath{k_{rss,b}}}
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -146,8 +206,11 @@
 \newcommand{\solDecl}{\ensuremath{\delta}}
 \newcommand{\eccCorr}{\ensuremath{E_{0}}}
 \newcommand{\dayTimeFac}{\ensuremath{\omega_{s}}}
-\newcommand{\doy}{\ensuremath{N}}
+\newcommand{\doy}{\ensuremath{doy}}
+\newcommand{\hour}{\ensuremath{h}}
+\newcommand{\utcAdd}{\ensuremath{a_{UTC}}}
 \newcommand{\lat}{\ensuremath{\varphi}}
+\newcommand{\lon}{\ensuremath{L_m}}
 
 
 
@@ -195,3 +258,23 @@
 
 \newcommand{\satHydrCond}{\ensuremath{k_{f}}}
 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% SOIL RELATED PARAMETES AND VARIABLES
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\capilSuc}{\ensuremath{h}}
+\newcommand{\sucStressMin}{\ensuremath{h_{s,min}}}
+\newcommand{\sucStressMax}{\ensuremath{h_{s,max}}}
+\newcommand{\bubblePress}{\ensuremath{h_b}}
+\newcommand{\PoresInd}{\ensuremath{\lambda}}
+\newcommand{\waterCont}{\ensuremath{\theta}}
+\newcommand{\waterContRoot}{\ensuremath{\theta_{root}}}
+\newcommand{\waterContTop}{\ensuremath{\theta_{top}}}
+\newcommand{\waterContGrav}{\ensuremath{\theta_{g}}}
+\newcommand{\waterContRes}{\ensuremath{\theta_r}}
+\newcommand{\waterContSat}{\ensuremath{\theta_s}}
+\newcommand{\waterContPwp}{\ensuremath{\theta_{pwp}}}
+\newcommand{\waterContFK}{\ensuremath{\theta_{fk}}}
+\newcommand{\waterContEtmax}{\ensuremath{\theta_{etmax}}}
