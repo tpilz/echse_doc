@@ -12,11 +12,11 @@ This chapter describes approaches to model evapotranspiration. Two distinct calc
 
 Over past decades a large number of approaches has been developed, ranging from simple empirical to complex process-based ones. For a review of the historical development of both scientific knowledge and modeling of evapotranspiration the reader is referred to \cite{Shuttleworth2007}.
 
-Each of the functions introduced in the next sections can be called independently. However, to have a greater flexibility 'master functions' where defined taking all possible input variables and parameters, and a choice flag (in a model application this would preferably be a \verb!sharedParamNum!) internally calling the desired method with all relevant inputs. Note that, in general, all inputs have to be given but can be set to a dummy value in case it is not needed for the desired method.
+Each of the functions introduced in the next sections can be called independently. However, to have a greater flexibility 'master functions' where defined taking all possible input variables and parameters, and a choice flag (in a model application this would preferably be a \verb!sharedParamNum!) internally calling the desired method with all relevant inputs. Note that, in general, all inputs have to be given but can be set to a dummy value in case it is not needed for the desired method. The master function \verb!et_pot! calculates \emph{potential} evapotranspiration whereas \verb!et_act! calculates the \emph{actual} value. The output unit is, as commonly done in ECHSE, defined following the international SI system: [\si{\metre\per\second}]. This can be adapted in the implementation of you model engine. E.g., to derive a \emph{sum} of evapotranspiration instead of an average \emph{flux} over the simulation time step multiply by \verb!delta_t! (in [\si{\second}]) and by \num{1000} to get [\si{\milli\metre}]. \tabsref{tab:et:pot} and \ref{tab:et:act} list all input variables for the master functions in the order of occurrence (however, you are advised to look into the source code in case changes have not yet been included into the documentation!).
 
-In the following the procedures so far incorporated in ECHSE including the 'master functions' \verb!et_pot! and \verb!et_act! shall be briefly described. Note that many approaches make use of meteorological quantities and relationships which are independently described in \chapref{chap:meteo}.
+If the functions are called with hourly time steps it may happen that negative evapotranspiration is calculated due to a negative energy balance (outgoing energy predominates incoming energy). This can be interpreted as dew formation. However, so far this process is not explicitly considered and the result of every evapotranspiration routine is limited to zero as lower boundary.
 
-\tabsref{tab:et:pot} and \ref{tab:et:act} list all input variables for the master functions in the order of occurrence (however, you are advised to look into the source code in case changes have not yet been included into the documentation!).
+In the following the procedures so far incorporated in ECHSE shall be briefly described. Note that many approaches make use of meteorological quantities and relationships which are independently described in \chapref{chap:meteo}.
 
 \onecolumn
 \begin{center}
@@ -70,14 +70,14 @@ $h$ & \verb!elev! & \si{\metre} & Elevation above sea level & Needed for calcula
 \hline
 \multicolumn{5}{|l|}{Vegetation and land-cover parameters and variables}\\ \hline
 \cropfacMak & \verb!crop_makk! & -- & Crop factor \emph{Makkink} & Calculation of land-cover specific \etPot{} after \emph{Makkink}, cf. \secref{sec:eta:cropfactors} \\
-\cropfacMak & \verb!crop_faoref! & -- & Crop factor \emph{FAO reference} & Calculation of land-cover specific \etPot{} following \emph{FAO reference evaporation model}, cf. \secsref{sec:et:fao_ref}, \ref{sec:eta:cropfactors}; simply set it to one if you want the reference evaporation \\
+\cropfacFAO & \verb!crop_faoref! & -- & Crop factor \emph{FAO reference} & Calculation of land-cover specific \etPot{} following \emph{FAO reference evaporation model}, cf. \secsref{sec:et:fao_ref}, \ref{sec:eta:cropfactors}; simply set it to one if you want the reference evaporation \\
 \canoHeight & \verb!cano_height! & \si{\metre} & Canopy height & Calculation of \emph{aerodynamic resistance}, cf. \secref{sec:et:resist} \\
 \leafAreaIndex & \verb!lai! & \si{\metre\squared\per\metre\squared} & Leaf area index & Calculation of \emph{resistances}, cf. \secref{sec:et:resist} \\
 \albedo & \verb!alb! & -- & Albedo & Calculation of energy balance (\netRadiation{}), see \secref{sec:meteo:radnet} \\
 \canoExt & \verb!ext! & -- & Canopy's extinction coefficient & Extinction of incoming radiation by canopy expressed by the \emph{Beer-Lambert law}; needed for calculation of canopy surface resistance, see \secref{sec:et:resist} \\
 \resLeafMin & \verb!res_leaf_min! & \si{\second\per\metre} & Minimum stomatal resistance of a single leaf & Species-specific parameter; value gets up-scaled to whole canopy for calculation of canopy surface resistance, see \secref{sec:et:resist} \\
 \densitySoil & \verb!soil_dens! & \si{\kilo\gram\per\cubic\metre} & Bulk density of soil & Calculation of soil's \emph{surface resistance}; only for approaches explicitly accounting for surface resistance of soil, see \secref{sec:et:res:rss} \\
-\radShortHalf & \verb!glo_half! & \si{\watt\per\metre\squared} & Short-wave radiation at which stomatal conductance is half of its maximum & Species-specific parameter for calculation of canopy resistance, see \secref{sec:et:resist} \\
+\radShortHalf & \verb!glo_half! & \si{\watt\per\metre\squared} & Short-wave radiation at which stomatal conductance is half of its maximum & Species-specific parameter for calculation of canopy resistance, see \eqnref{eqn:et:res:rcs2} \\
 \resMeanBound & \verb!res_b! & \si{\second\per\metre} & Mean boundary layer resistance & Parameter bulk boundary layer aerodynamic resistance of vegetative elements in the canopy; for two-layer approaches, see \secref{sec:et:res:rca} \\
 \dragCoef & \verb!drag_coef! & -- & Effective value of mean drag coefficient of vegetative elements & Parameter for calculation of aerodynamic resistance using approach of \citet{Shuttleworth1990}, see \secref{sec:et:resist} \\
 \roughSoil & \verb!rough_bare! & \si{\metre} & Roughness length of bare soil & Parameter for calculation of aerodynamic resistance, see \secref{sec:et:resist} \\
@@ -281,7 +281,7 @@ The \emph{Food and Agricultural Organization of the United Nations (FAO)} publis
 usage
 \begin{verbatim}
 etp_penmon_ref(temper,wind,
-apress,delta,H_net,ez_0,ez,
+apress,delta,H_net,G,ez_0,ez,
 h_windMeas,delta_t)
 \end{verbatim}
 
@@ -748,7 +748,7 @@ A second and physically more meaningful but also more parameter intensive approa
 usage
 \begin{verbatim}
 res_cs(ch_rcs,lai,res_ST,
-ext,glorad,glorad_half)
+ext,glorad,glo_half)
 \end{verbatim}
 
 \noindent
@@ -823,4 +823,5 @@ The following work still has to be done or issues need to be resolved:
 \item Add more or better (physically-based?) approaches for estimation of soil surface resistance (\secref{sec:et:res:rss})
 \item Add more or better approaches to estimate the soil moisture factor (\secref{sec:eta:soilmoisture})
 \item Implement pedotransfer functions to estimate soil parameters from more readily available texture parameters (simplifies the pre-processing)
+\item Explicitly consider dew formation (negative values of evapotranspiration over nighttime). So far the function's outputs are simply limited to zero as lower boundary to prevent negative evapotranspiration values.
 \end{itemize}

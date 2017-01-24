@@ -253,7 +253,7 @@ The eccentricity correction factor \eccCorr{} (dimensionless) accounts for that 
 
 \noindent
 Usage:
-\verb!eccorr(doy)!\\
+\verb!e_corr(doy)!\\
 
 Where $r_0$ is the average and $r$ the distance between Earth and Sun for any day of the year, and \doy{} (\verb!doy!) is the current \emph{Julian day} or \emph{day of the year}. For simplification, day \num{366} at leap years is set to \num{365} as otherwise the above formula would not give a reasonable value. It should thus not be used in cases where high accuracy is needed.
 
@@ -284,7 +284,8 @@ On a \textbf{daily} basis it is calculated by integrating incoming solar radiati
 
 \noindent
 Usage:
-\verb!rad_extraterr_daily(doy, lat)!\\
+\verb!rad_extraterr_daily(doy, lat)!
+\\
 
 For \solarConstant{} see \secref{sec:meteo:constants} and for \eccCorr{}, \dayTimeFac{}, and \solDecl{} see \secsref{sec:meteo:eccorr}, \ref{sec:meteo:daytimefac}, and \ref{eqn:meteo:soldecl}, respectively.
 
@@ -312,7 +313,7 @@ with \lon{} (\verb!L_m!) being the longitutde of the location of interest in dec
 where, of course, radiation is zero if $\omega_{mid} < -\dayTimeFac{}$ or $\omega_{mid} > \dayTimeFac{}$ (for \dayTimeFac{} see \secref{sec:meteo:daytimefac}), i.e. if the Sun is not shining (note from \eqnref{eqn:meteo:radex_h:w_mid} that the accuracy is $\pm$ half an hour). Eventually, analog to \radExtraterrDaily{}, hourly values of \radExtraterr{} can be obtained:
 
 \begin{multline}\label{eqn:meteo:radex_h}
-\radExtraterrHourly{} = \frac{1}{\pi} \cdot \solarConstant{} \cdot \eccCorr{}\\
+\radExtraterrHourly{} = \frac{12}{\pi} \cdot \solarConstant{} \cdot \eccCorr{}\\
 \big[ (\omega_{end}-\omega_{ini}) \cdot \sin(\solDecl{}) \cdot \sin(\lat{})\\
 + \cos(\solDecl{}) \cdot \cos(\lat{}) \cdot (\sin(\omega_{end})-\sin(\omega_{ini})) \big]
 \end{multline}
@@ -363,13 +364,13 @@ N = \dayTimeFac{} \frac{24}{\pi}
 
 
 \subsection{Maximum (clear-sky) incoming short-wave radiation -- \radShortwaveInClearsky} \label{sec:meteo:radshortmax}
-The maximum possible incoming short-wave radiation in case of clear sky (\radShortwaveInClearsky{} in [\si{\watt\per\metre\squared}]) is calculated analogue to \radShortwaveIn{} (cf. \secref{sec:meteo:radshort}) assuming full sunshine duration and thus $\frac{n}{N} = \num{1}$ ($\verb!choice! = 1$):
+The maximum possible incoming short-wave radiation in case of clear sky (\radShortwaveInClearsky{} in [\si{\watt\per\metre\squared}]) is calculated analogue to \radShortwaveIn{} (cf. \secref{sec:meteo:radshort}) assuming full sunshine duration and thus $\frac{n}{N} = \num{1}$ ($\verb!ch_gloradmax! = 1$):
 
 \begin{equation}\label{eqn:meteo:radshortmax_a}
 \radShortwaveInClearsky{} = \left( a_s + b_s \right) \radExtraterr{}
 \end{equation}
 
-However, \citet{Allen2005} recommend, in case no suitable values of \angstA{} and \angstB{} are available, an empirical relation depending on \radExtraterr{} and elevation above sea level ($h$, \verb!elev! in [\si{\metre}]) as input which has been incorporated in ECHSE as well ($\verb!choice! = 2$):
+However, \citet{Allen2005} recommend, in case no suitable values of \angstA{} and \angstB{} are available, an empirical relation depending on \radExtraterr{} and elevation above sea level ($h$, \verb!elev! in [\si{\metre}]) as input which has been incorporated in ECHSE as well ($\verb!ch_gloradmax! = 2$):
 
 \begin{equation}\label{eqn:meteo:radshortmax_b}
 \radShortwaveInClearsky{} = \left( 0.75 + \num{2e-5} h \right) \radExtraterr{}
@@ -378,7 +379,7 @@ However, \citet{Allen2005} recommend, in case no suitable values of \angstA{} an
 \noindent
 Usage:
 \begin{verbatim}
-calc_glorad_max(choice, radex,
+calc_glorad_max(ch_gloradmax, radex,
 radex_a,radex_b,elev)
 \end{verbatim}
 
