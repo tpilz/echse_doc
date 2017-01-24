@@ -237,6 +237,7 @@
 \newcommand{\rateSnowMelt}{\ensuremath{r_{melt}}}
 
 \newcommand{\soilDepth}{\ensuremath{D}}
+\newcommand{\horDepth}{\ensuremath{D_{hor}}}
 \newcommand{\satFrac}{\ensuremath{f_{sat}}}
 \newcommand{\expSatFrac}{\ensuremath{{\beta}}}
 
@@ -258,6 +259,10 @@
 \newcommand{\concTimeIndex}{\ensuremath{{CTI}}}
 
 \newcommand{\satHydrCond}{\ensuremath{k_{f}}}
+\newcommand{\hydrCond}{\ensuremath{k_{u}}}
+
+\newcommand{\percol}{\ensuremath{q_{perc}}}
+\newcommand{\latflow}{\ensuremath{q_{lat}}}
 
 
 
@@ -265,11 +270,20 @@
 % SOIL RELATED PARAMETES AND VARIABLES
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\newcommand{\capilSuc}{\ensuremath{h}}
-\newcommand{\sucStressMin}{\ensuremath{h_{s,min}}}
-\newcommand{\sucStressMax}{\ensuremath{h_{s,max}}}
+\newcommand{\capilSuc}{\ensuremath{\psi}}
+
+\newcommand{\sucStressMin}{\ensuremath{\psi_{s,min}}}
+\newcommand{\sucStressMax}{\ensuremath{\psi_{s,max}}}
+
+\newcommand{\capilSucWetfront}{\ensuremath{\psi_f}}
+
 \newcommand{\bubblePress}{\ensuremath{h_b}}
 \newcommand{\PoresInd}{\ensuremath{\lambda}}
+
+\newcommand{\porosRefill}{\ensuremath{n_r}}
+
+\newcommand{\sorptivity}{\ensuremath{S}}
+
 \newcommand{\waterCont}{\ensuremath{\theta}}
 \newcommand{\waterContRoot}{\ensuremath{\theta_{root}}}
 \newcommand{\waterContTop}{\ensuremath{\theta_{top}}}
@@ -277,5 +291,5 @@
 \newcommand{\waterContRes}{\ensuremath{\theta_r}}
 \newcommand{\waterContSat}{\ensuremath{\theta_s}}
 \newcommand{\waterContPwp}{\ensuremath{\theta_{pwp}}}
-\newcommand{\waterContFK}{\ensuremath{\theta_{fk}}}
+\newcommand{\waterContFK}{\ensuremath{\theta_{fc}}}
 \newcommand{\waterContEtmax}{\ensuremath{\theta_{etmax}}}
